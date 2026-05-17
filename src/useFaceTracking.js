@@ -7,7 +7,6 @@ const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmark
 
 const LEFT_IRIS   = 468, RIGHT_IRIS  = 473
 const LEFT_EYE_L  = 33,  LEFT_EYE_R  = 133
-const LEFT_EYE_T  = 159, LEFT_EYE_B  = 145
 const RIGHT_EYE_L = 362, RIGHT_EYE_R = 263
 
 // One Euro Filter — adapts smoothing to gaze velocity:
@@ -139,21 +138,29 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
     function processGaze(lm) {
       const lIris = lm[LEFT_IRIS],   rIris = lm[RIGHT_IRIS]
       const lEyeL = lm[LEFT_EYE_L],  lEyeR = lm[LEFT_EYE_R]
-      const lEyeT = lm[LEFT_EYE_T],  lEyeB = lm[LEFT_EYE_B]
       const rEyeL = lm[RIGHT_EYE_L], rEyeR = lm[RIGHT_EYE_R]
 
       const lW = lEyeR.x - lEyeL.x || 0.001
       const rW = rEyeR.x - rEyeL.x || 0.001
-      const eH = lEyeB.y - lEyeT.y || 0.001
 
+      // X: iris position relative to eye corners, normalized by eye width
       const lRatioX = (lIris.x - lEyeL.x) / lW
       const rRatioX = (rIris.x - rEyeL.x) / rW
       const ratioX  = (lRatioX + rRatioX) / 2
-      const ratioY  = (lIris.y - lEyeT.y) / eH
 
-      // Feed raw iris ratios to the One Euro filter (no sensitivity scaling).
-      // With calibration the transform handles all mapping — sensitivity would
-      // corrupt the range the transform was trained on.
+      // Y: iris position relative to the eye-corner midline (NOT the eyelid).
+      // Eye corners are anchored to the skull and don't move with blinks or
+      // partial eyelid drooping — using eyelid landmarks as reference caused
+      // the cursor to track eyelid movement rather than true iris position.
+      // Normalized by eye width (stable) instead of eyelid opening height.
+      const lMidY   = (lEyeL.y + lEyeR.y) / 2
+      const rMidY   = (rEyeL.y + rEyeR.y) / 2
+      const lRatioY = (lIris.y - lMidY) / lW
+      const rRatioY = (rIris.y - rMidY) / rW
+      const ratioY  = (lRatioY + rRatioY) / 2
+
+      // Feed raw iris ratios to the One Euro filter.
+      // With calibration the transform handles all mapping.
       const t  = performance.now()
       const fx = filterX.current(ratioX, t)
       const fy = filterY.current(ratioY, t)
@@ -161,9 +168,11 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
       if (calibRef.current) {
         setGazePoint(applyTransform(calibRef.current, { x: fx, y: fy }))
       } else {
-        // Uncalibrated fallback: apply mirror + sensitivity for rough mapping
+        // Uncalibrated fallback.
+        // ratioX ∈ [0,1] centered at 0.5 — mirror and scale.
+        // ratioY ∈ [~−0.15, ~0.15] centered at 0 — scale and shift.
         const rawX = 1 - ((fx - 0.5) * sensitivity + 0.5)
-        const rawY =      (fy - 0.5) * sensitivity + 0.5
+        const rawY = fy * sensitivity * 3.5 + 0.5
         setGazePoint({ x: Math.max(0, Math.min(1, rawX)), y: Math.max(0, Math.min(1, rawY)) })
       }
     }
