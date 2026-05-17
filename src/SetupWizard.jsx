@@ -201,7 +201,7 @@ function CalibrationStep({ onDone, onSkip }) {
   const varDataRef   = useRef([])  // per-target stddev for tremor profiling
   const phaseStart   = useRef(0)
 
-  const { gazePoint: rawIris, status, videoRef } = useFaceTracking(true)
+  const { rawGaze, status, videoRef } = useFaceTracking(true)
 
   // Measure button centres after first paint
   useLayoutEffect(() => {
@@ -224,7 +224,7 @@ function CalibrationStep({ onDone, onSkip }) {
 
   // Main calibration loop — runs on every iris update
   useEffect(() => {
-    if (!rawIris || status !== 'active' || phase === 'waiting') return
+    if (!rawGaze || status !== 'active' || phase === 'waiting') return
 
     const now = performance.now()
 
@@ -241,7 +241,7 @@ function CalibrationStep({ onDone, onSkip }) {
 
     // ── collecting: only count stable fixation frames ──
     const win = irisWindowRef.current
-    win.push({ x: rawIris.x, y: rawIris.y })
+    win.push({ x: rawGaze.x, y: rawGaze.y })
     if (win.length > STABILITY_WINDOW) win.shift()
     if (win.length < STABILITY_WINDOW) return  // wait until buffer is full
 
@@ -258,7 +258,7 @@ function CalibrationStep({ onDone, onSkip }) {
 
     if (stable) {
       stableCountRef.current++
-      samplesRef.current.push({ x: rawIris.x, y: rawIris.y })
+      samplesRef.current.push({ x: rawGaze.x, y: rawGaze.y })
     }
 
     const pct = Math.min(stableCountRef.current / STABLE_NEEDED, 1)
@@ -304,7 +304,7 @@ function CalibrationStep({ onDone, onSkip }) {
     const irisPoints   = allDataRef.current.map(d => d.iris)
     const screenPoints = allDataRef.current.map(d => d.screen)
     onDone(fitTransform(irisPoints, screenPoints), computeTremorProfile(varDataRef.current))
-  }, [rawIris]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rawGaze]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalSteps  = TOTAL_TARGETS * PASSES
   const currentStep = pass * TOTAL_TARGETS + targetIdx + 1

@@ -37,6 +37,7 @@ const MOUTH_MIN_MS    = 80
 // This keeps the element in the React tree, avoiding Strict Mode / DOM issues.
 export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = null, tremorProfile = null) {
   const [gazePoint,  setGazePoint]  = useState(null)
+  const [rawGaze,    setRawGaze]    = useState(null) // filtered iris ratios, before any transform
   const [blinkCount, setBlinkCount] = useState(0)
   const [mouthCount, setMouthCount] = useState(0)
   const [status,     setStatus]     = useState('idle')
@@ -165,6 +166,11 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
       const fx = filterX.current(ratioX, t)
       const fy = filterY.current(ratioY, t)
 
+      // Always expose the filtered raw ratios so CalibrationStep can collect them.
+      // gazePoint is post-transform (screen coords); rawGaze is pre-transform (iris space).
+      // Calibration must be trained and applied in the same coordinate space.
+      setRawGaze({ x: fx, y: fy })
+
       if (calibRef.current) {
         setGazePoint(applyTransform(calibRef.current, { x: fx, y: fy }))
       } else {
@@ -221,7 +227,7 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
     }
   }
 
-  return { gazePoint, blinkCount, mouthCount, status, videoRef }
+  return { gazePoint, rawGaze, blinkCount, mouthCount, status, videoRef }
 }
 
 function waitForRef(ref, timeoutMs) {
