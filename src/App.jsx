@@ -9,7 +9,7 @@ import { GazeCursor } from './GazeCursor'
 import { SetupWizard, needsSetup, resetSetup } from './SetupWizard'
 import { loadTransform, loadTremorProfile } from './calibration'
 import { useBattery } from './useBattery'
-import { useFallDetection, getDeviceType } from './useFallDetection'
+import { useFallDetection, getDeviceType, requestMotionPermission } from './useFallDetection'
 import './App.css'
 
 const DIGITAR_ID = '__digitar__'
@@ -352,6 +352,7 @@ function App({ onResetSetup }) {
           selectedVoice={selectedVoice}
           onSelectVoice={setSelectedVoice}
           onPreviewVoice={v => speakNative('Olá, eu sou a voz que vai te ajudar.', v, speechRate)}
+          onRequestMotion={requestMotionPermission}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -459,7 +460,9 @@ function HistorySheet({ history, onSpeak, onClose }) {
   )
 }
 
-function SettingsSheet({ onResetSetup, speechRate, onRateChange, darkMode, onDarkModeChange, gazeEnabled, onGazeChange, dwellTime, onDwellChange, scanEnabled, onScanChange, scanSpeed, onScanSpeedChange, scanTrigger, onScanTriggerChange, usingPiper, voices, selectedVoice, onSelectVoice, onPreviewVoice, onClose }) {
+function SettingsSheet({ onResetSetup, speechRate, onRateChange, darkMode, onDarkModeChange, gazeEnabled, onGazeChange, dwellTime, onDwellChange, scanEnabled, onScanChange, scanSpeed, onScanSpeedChange, scanTrigger, onScanTriggerChange, usingPiper, voices, selectedVoice, onSelectVoice, onPreviewVoice, onRequestMotion, onClose }) {
+  const [motionPerm, setMotionPerm] = useState(null)
+  const needsMotionPerm = typeof DeviceMotionEvent?.requestPermission === 'function'
   const rateLabels = { 0.5: 'Muito lento', 0.7: 'Lento', 0.85: 'Normal', 1.0: 'Rápido', 1.2: 'Muito rápido' }
   const closestLabel = Object.entries(rateLabels).reduce((best, [k, v]) =>
     Math.abs(k - speechRate) < Math.abs(best[0] - speechRate) ? [k, v] : best, [0.85, 'Normal'])[1]
@@ -586,6 +589,27 @@ function SettingsSheet({ onResetSetup, speechRate, onRateChange, darkMode, onDar
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {needsMotionPerm && motionPerm !== 'granted' && (
+            <div className="settings-section">
+              <div className="settings-row">
+                <div>
+                  <span className="settings-label">Detecção de queda</span>
+                  <p className="settings-hint">
+                    {motionPerm === 'denied'
+                      ? 'Permissão negada. Ative o sensor de movimento nas configurações do iOS.'
+                      : 'Permite detectar se o aparelho caiu e alertar automaticamente.'}
+                  </p>
+                </div>
+                <button
+                  className={`toggle-btn${motionPerm === 'granted' ? ' on' : ''}`}
+                  onClick={() => onRequestMotion().then(p => setMotionPerm(p))}
+                >
+                  {motionPerm === 'denied' ? '⚠️ Negado' : '📡 Ativar'}
+                </button>
+              </div>
             </div>
           )}
 

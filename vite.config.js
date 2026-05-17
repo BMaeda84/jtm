@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
+// When building for GitHub Pages (CI=true), assets are served under /jtm/
+const base = process.env.GITHUB_ACTIONS ? '/jtm/' : '/'
+
 export default defineConfig({
+  base,
   server: {
     https: true,
     host: true,
@@ -15,8 +19,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        maximumFileSizeToCacheInBytes: 30 * 1024 * 1024, // 30MB — covers ONNX WASM
-        globIgnores: ['**/*.wasm'],                       // still skip WASM from precache (too large for SW)
+        maximumFileSizeToCacheInBytes: 30 * 1024 * 1024,
+        globIgnores: ['**/*.wasm'],
       },
       manifest: {
         name: 'JTM - Comunicação',
@@ -25,7 +29,7 @@ export default defineConfig({
         theme_color: '#1D4ED8',
         background_color: '#F8FAFC',
         display: 'standalone',
-        start_url: '/',
+        start_url: base,
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
