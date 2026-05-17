@@ -5,31 +5,35 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── Tokens ── */
+/* ── Tokens de design ────────────────────────────────────────────────────── */
 :root {
-  --header-h: 56px;
-  --nav-h: 72px;
-  --gap: 10px;
+  --header-h: 60px;   /* altura do cabeçalho (era 56px) */
+  --nav-h:    80px;   /* altura da barra de categorias (era 72px) */
+  --gap:      12px;   /* espaçamento geral */
 
-  --bg-app:    #F1F5F9;
+  /* Paleta clara — cores calmas, baixa saturação */
+  --bg-app:    #EEF2F7;   /* azul-cinza suave */
   --bg-card:   #FFFFFF;
   --bg-nav:    #FFFFFF;
-  --bg-header: #1D4ED8;
+  --bg-header: #1A4A7A;   /* azul-oceano profundo: calmo, legível */
   --text-1:    #1E293B;
   --text-2:    #64748B;
-  --border:    #E2E8F0;
-  --shadow:    0 2px 6px rgba(0 0 0 / 0.08);
+  --border:    #DDE3ED;
+  --shadow:    0 2px 8px rgba(0 0 0 / 0.07), 0 1px 3px rgba(0 0 0 / 0.05);
+  --accent:    #2563EB;
+  --radius:    18px;
 }
 
+/* Paleta escura */
 [data-dark="true"] {
   --bg-app:    #0F172A;
   --bg-card:   #1E293B;
   --bg-nav:    #1E293B;
-  --bg-header: #0F172A;
+  --bg-header: #0D1B2E;   /* mais escuro que o claro, mantém a calma */
   --text-1:    #F1F5F9;
   --text-2:    #94A3B8;
   --border:    #334155;
-  --shadow:    0 2px 6px rgba(0 0 0 / 0.3);
+  --shadow:    0 2px 8px rgba(0 0 0 / 0.3), 0 1px 3px rgba(0 0 0 / 0.2);
 }
 
 body {
@@ -40,6 +44,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Focus ring global — WCAG 2.4.7 / 2.4.11 ───────────────────────────── */
+/* Visível apenas para teclado/switch (não aparece no toque normal)         */
+:focus-visible {
+  outline: 3px solid #60A5FA;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Suporte a prefers-reduced-motion (WCAG 2.3.3) ─────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Layout principal ───────────────────────────────────────────────────── */
 .app {
   display: flex;
   flex-direction: column;
@@ -50,7 +71,7 @@ body {
   transition: background 0.2s;
 }
 
-/* ── Header ── */
+/* ── Header ─────────────────────────────────────────────────────────────── */
 .app-header {
   height: var(--header-h);
   background: var(--bg-header);
@@ -61,18 +82,39 @@ body {
   gap: 10px;
   flex-shrink: 0;
   transition: background 0.2s;
+  /* Sutil borda inferior para separar do conteúdo em modo claro */
+  border-bottom: 1px solid rgba(0 0 0 / 0.12);
 }
 
-.app-logo {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 2px;
+/* Logo marca: ícone olho + texto JTM */
+.app-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.app-logo-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: block;
   flex-shrink: 0;
 }
 
+.app-logo {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #F1F5F9;
+  flex-shrink: 0;
+}
+
+/* Indicador de fala ativa — anunciado por aria-live="polite" */
 .speaking-indicator {
-  font-size: 14px;
-  background: rgba(255 255 255 / 0.2);
+  font-size: 13px;
+  background: rgba(255 255 255 / 0.18);
   padding: 4px 10px;
   border-radius: 20px;
   opacity: 0;
@@ -80,7 +122,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: 140px;
   flex-shrink: 1;
 }
 .speaking-indicator.visible { opacity: 1; }
@@ -93,43 +135,45 @@ body {
   flex-shrink: 0;
 }
 
+/* Badges de status (Piper, câmera) */
 .gaze-badge {
   font-size: 13px;
   padding: 2px 8px;
   border-radius: 20px;
   background: rgba(255 255 255 / 0.15);
 }
-.gaze-active { background: rgba(34,197,94,0.3); }
+.gaze-active  { background: rgba(34,197,94,0.3); }
 .gaze-loading { opacity: 0.7; }
-.gaze-error { background: rgba(239,68,68,0.3); }
-
-.settings-hint {
-  font-size: 12px;
-  color: var(--text-2);
-  margin-top: 3px;
-  line-height: 1.4;
-}
+.gaze-error   { background: rgba(239,68,68,0.3); }
 
 .piper-badge {
   font-size: 11px;
   font-weight: 700;
-  background: rgba(255 255 255 / 0.25);
+  background: rgba(255 255 255 / 0.22);
   padding: 2px 8px;
   border-radius: 20px;
 }
 
+/* Botões de ícone no header — mínimo 44×44px (WCAG 2.5.5) */
 .icon-btn {
-  background: rgba(255 255 255 / 0.15);
+  background: rgba(255 255 255 / 0.12);
   border: none;
   border-radius: 10px;
-  padding: 6px 8px;
-  font-size: 18px;
+  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 20px;
   cursor: pointer;
   color: white;
   touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
 }
+.icon-btn:hover { background: rgba(255 255 255 / 0.22); }
 
-/* ── Piper banner ── */
+/* ── Piper banner ───────────────────────────────────────────────────────── */
 .piper-banner {
   background: #1E3A8A;
   color: white;
@@ -141,15 +185,18 @@ body {
 }
 .piper-banner-text { display: flex; flex-direction: column; gap: 2px; }
 .piper-banner-text strong { font-size: 14px; }
-.piper-banner-text span { font-size: 12px; opacity: 0.8; }
+.piper-banner-text span   { font-size: 12px; opacity: 0.85; }
 .piper-banner-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .piper-btn-primary {
   background: white; color: #1E3A8A; border: none;
-  border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700; cursor: pointer;
+  border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 700;
+  cursor: pointer; min-height: 44px; touch-action: manipulation;
 }
 .piper-btn-secondary {
-  background: transparent; color: white; border: 1px solid rgba(255 255 255 / 0.4);
-  border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer;
+  background: transparent; color: white;
+  border: 1px solid rgba(255 255 255 / 0.4);
+  border-radius: 8px; padding: 8px 14px; font-size: 14px;
+  cursor: pointer; min-height: 44px; touch-action: manipulation;
 }
 .piper-progress-bar {
   height: 6px; background: rgba(255 255 255 / 0.2); border-radius: 3px; overflow: hidden;
@@ -166,7 +213,7 @@ body {
   font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0;
 }
 
-/* ── Repetir bar ── */
+/* ── Barra de repetição ─────────────────────────────────────────────────── */
 .repetir-bar {
   display: flex;
   align-items: center;
@@ -180,108 +227,129 @@ body {
   text-align: left;
   flex-shrink: 0;
   touch-action: manipulation;
+  min-height: 52px;
 }
 .repetir-emoji { font-size: 22px; }
-.repetir-text { font-size: 14px; color: var(--text-2); flex: 1; }
+.repetir-text  { font-size: 14px; color: var(--text-2); flex: 1; }
 .repetir-text strong { color: var(--text-1); }
-.repetir-icon { font-size: 18px; }
+.repetir-icon  { font-size: 18px; }
 
-/* ── Phrase grid ── */
+/* ── Grade de frases ────────────────────────────────────────────────────── */
 .phrase-grid {
   flex: 1;
   overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-auto-rows: minmax(100px, 1fr);
+  grid-auto-rows: minmax(120px, 1fr);   /* era 100px — alvos de toque maiores */
   gap: var(--gap);
   padding: var(--gap);
   align-content: stretch;
+  /* Scroll suave com momentum no iOS */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
+/* ── Wrapper do botão de frase ──────────────────────────────────────────── */
 .phrase-btn-wrap {
   background: var(--bg-card);
-  border: 3px solid transparent;
-  border-radius: 16px;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
-  min-height: 100px;
+  min-height: 120px;
   position: relative;
-  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+  /* Separação visual sutil entre card e fundo */
+  outline: 1px solid rgba(0 0 0 / 0.04);
 }
+
+/* Estado de varredura: borda âmbar pulsante */
 .phrase-btn-wrap.scanning {
   border-color: #F59E0B;
   box-shadow: 0 0 0 4px rgba(245,158,11,0.35), var(--shadow);
-  animation: scan-pulse 0.6s ease-in-out infinite alternate;
+  animation: scan-pulse 0.7s ease-in-out infinite alternate;
 }
-
 @keyframes scan-pulse {
-  from { box-shadow: 0 0 0 4px rgba(245,158,11,0.25), var(--shadow); }
-  to   { box-shadow: 0 0 0 8px rgba(245,158,11,0.45), var(--shadow); }
+  from { box-shadow: 0 0 0 3px rgba(245,158,11,0.25), var(--shadow); }
+  to   { box-shadow: 0 0 0 9px rgba(245,158,11,0.45), var(--shadow); }
 }
 
+/* Estado de pressionado */
 .phrase-btn-wrap.pressed {
-  transform: scale(0.95);
+  transform: scale(0.94);
   border-color: var(--category-color);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--category-color) 20%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--category-color) 22%, transparent), var(--shadow);
 }
 
+/* ── Botão principal de frase ───────────────────────────────────────────── */
 .phrase-btn-main {
   width: 100%;
   height: 100%;
-  min-height: 100px;
+  min-height: 120px;
   background: none;
   border: none;
-  border-radius: 14px;
-  padding: 16px 8px 14px;
+  border-radius: calc(var(--radius) - 2px);
+  padding: 20px 12px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
 }
 
-.fav-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
+.phrase-emoji {
+  font-size: 40px;      /* era 36px — mais visível para baixa visão */
   line-height: 1;
-  opacity: 0.35;
-  transition: opacity 0.15s, transform 0.15s;
-  touch-action: manipulation;
 }
-.fav-btn:active { transform: scale(1.3); }
-.fav-btn.active { opacity: 1; }
 
-.phrase-emoji { font-size: 36px; line-height: 1; }
 .phrase-label {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;      /* era 15px — mínimo recomendado para CAA */
+  font-weight: 700;     /* era 600 — mais legível */
   color: var(--text-1);
   text-align: center;
   line-height: 1.2;
 }
 
-/* ── Empty state ── */
+/* ── Botão de favorito — mínimo 44×44px (WCAG 2.5.5) ───────────────────── */
+.fav-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  font-size: 17px;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0.3;
+  transition: opacity 0.15s, transform 0.15s;
+  touch-action: manipulation;
+  border-radius: 10px;
+}
+.fav-btn:active { transform: scale(1.3); }
+.fav-btn.active { opacity: 1; }
+
+/* ── Estado vazio (categoria favoritos sem itens) ───────────────────────── */
 .empty-state {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 40px 20px;
+  padding: 48px 20px;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: 16px;
   text-align: center;
   line-height: 1.5;
 }
 
-/* ── Text input area ── */
+/* ── Área de texto livre ────────────────────────────────────────────────── */
 .text-input-area {
   flex: 1;
   display: flex;
@@ -296,7 +364,7 @@ body {
 .text-input-field {
   flex: 1;
   border: 2px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 14px;
   font-size: 18px;
   font-family: inherit;
@@ -305,23 +373,26 @@ body {
   resize: none;
   outline: none;
   transition: border-color 0.15s;
+  -webkit-overflow-scrolling: touch;
 }
-.text-input-field:focus { border-color: #2563EB; }
+.text-input-field:focus { border-color: var(--accent); }
 .text-input-speak {
-  background: #2563EB;
+  background: var(--accent);
   color: white;
   border: none;
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: var(--radius);
+  padding: 18px;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
   flex-shrink: 0;
+  min-height: 56px;
+  transition: opacity 0.15s;
 }
-.text-input-speak:disabled { opacity: 0.4; }
+.text-input-speak:disabled { opacity: 0.4; cursor: default; }
 
-/* ── Category nav ── */
+/* ── Barra de categorias ────────────────────────────────────────────────── */
 .category-nav {
   height: var(--nav-h);
   background: var(--bg-nav);
@@ -333,15 +404,17 @@ body {
 }
 .category-nav::-webkit-scrollbar { display: none; }
 
+/* Cada aba de categoria — mínimo 72px para toque (WCAG 2.5.5) */
 .cat-btn {
   flex: 0 0 auto;
-  min-width: 70px;
+  min-width: 72px;
   padding: 6px 10px;
   border: none;
   background: none;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
   cursor: pointer;
   border-top: 3px solid transparent;
@@ -350,35 +423,52 @@ body {
 }
 .cat-btn.active {
   border-top-color: var(--cat-color);
-  background: color-mix(in srgb, var(--cat-color) 8%, transparent);
+  background: color-mix(in srgb, var(--cat-color) 9%, transparent);
 }
-.cat-emoji { font-size: 22px; }
-.cat-label { font-size: 11px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.cat-emoji { font-size: 24px; }           /* era 22px */
+.cat-label {
+  font-size: 11px;
+  font-weight: 700;                        /* era 600 */
+  color: var(--text-2);
+  white-space: nowrap;
+}
 .cat-btn.active .cat-label { color: var(--cat-color); }
 
-/* ── Overlay + bottom sheet ── */
+/* ── Overlay + bottom sheet ─────────────────────────────────────────────── */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0 0 0 / 0.5);
+  background: rgba(0 0 0 / 0.55);
   z-index: 100;
   display: flex;
   align-items: flex-end;
 }
 .voice-sheet {
   background: var(--bg-card);
-  border-radius: 20px 20px 0 0;
+  border-radius: 24px 24px 0 0;
   width: 100%;
   max-height: 75dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Handle visual no topo da sheet */
+  padding-top: 8px;
+}
+.voice-sheet::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 8px;
+  flex-shrink: 0;
 }
 .voice-sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 20px 14px;
   font-size: 17px;
   font-weight: 700;
   color: var(--text-1);
@@ -389,14 +479,19 @@ body {
   background: var(--bg-app);
   border: none;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 14px;
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
   cursor: pointer;
   color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
 }
+.close-btn:hover { background: var(--border); }
 
-/* ── History ── */
+/* ── Histórico ──────────────────────────────────────────────────────────── */
 .history-list { list-style: none; overflow-y: auto; flex: 1; padding: 8px 0; }
 .history-item {
   width: 100%;
@@ -404,25 +499,35 @@ body {
   border: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  gap: 14px;
+  padding: 15px 20px;
   cursor: pointer;
   touch-action: manipulation;
+  min-height: 56px;
 }
 .history-item:active { background: var(--bg-app); }
-.history-emoji { font-size: 24px; }
-.history-label { flex: 1; font-size: 16px; font-weight: 500; color: var(--text-1); text-align: left; }
-.history-play { font-size: 18px; color: var(--text-2); }
+.history-emoji { font-size: 26px; }
+.history-label { flex: 1; font-size: 16px; font-weight: 600; color: var(--text-1); text-align: left; }
+.history-play  { font-size: 18px; color: var(--text-2); }
 
-/* ── Settings ── */
-.settings-body { overflow-y: auto; flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 24px; }
+/* ── Configurações ──────────────────────────────────────────────────────── */
+.settings-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  -webkit-overflow-scrolling: touch;
+}
 .settings-section { display: flex; flex-direction: column; gap: 10px; }
-.settings-row { display: flex; align-items: center; justify-content: space-between; }
-.settings-label { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.settings-row     { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-label   { font-size: 15px; font-weight: 600; color: var(--text-1); }
+.settings-hint    { font-size: 12px; color: var(--text-2); margin-top: 3px; line-height: 1.45; }
 
 .rate-slider {
   width: 100%;
-  accent-color: #2563EB;
+  accent-color: var(--accent);
   height: 6px;
   cursor: pointer;
 }
@@ -433,76 +538,85 @@ body {
   color: var(--text-2);
 }
 
-.trigger-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+.trigger-options { display: flex; flex-direction: column; gap: 8px; }
 .trigger-btn {
   background: var(--bg-app);
   border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: 14px;
+  padding: 12px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s, background 0.15s;
+  min-height: 56px;
+  touch-action: manipulation;
 }
-.trigger-btn span { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.trigger-btn span  { font-size: 14px; font-weight: 600; color: var(--text-1); }
 .trigger-btn small { font-size: 12px; color: var(--text-2); }
 .trigger-btn.active {
-  border-color: #2563EB;
-  background: color-mix(in srgb, #2563EB 8%, var(--bg-app));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-app));
 }
 
+/* Botão de alternância (toggle) — mínimo 44px altura */
 .toggle-btn {
   background: var(--bg-app);
   border: 2px solid var(--border);
   border-radius: 20px;
-  padding: 6px 14px;
+  padding: 8px 16px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   color: var(--text-2);
   transition: all 0.15s;
+  min-height: 44px;
+  min-width: 80px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  touch-action: manipulation;
 }
 .toggle-btn.on {
-  background: #1E3A8A;
-  border-color: #1E3A8A;
+  background: #1A4A7A;
+  border-color: #1A4A7A;
   color: white;
 }
 
-/* ── Voice picker (inside settings) ── */
+/* ── Lista de vozes ─────────────────────────────────────────────────────── */
 .voice-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .voice-list li { display: flex; align-items: center; gap: 8px; }
 .voice-item {
   flex: 1;
   background: none;
   border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   text-align: left;
+  min-height: 52px;
+  touch-action: manipulation;
 }
-.voice-item.selected { border-color: #2563EB; background: #EFF6FF; }
+.voice-item.selected { border-color: var(--accent); background: #EFF6FF; }
 .voice-name { font-size: 13px; font-weight: 600; color: var(--text-1); }
 .voice-lang { font-size: 11px; color: var(--text-2); }
 .voice-preview-btn {
   background: var(--bg-app);
   border: none;
   border-radius: 50%;
-  width: 34px;
-  height: 34px;
-  font-size: 13px;
+  width: 44px;
+  height: 44px;
+  font-size: 14px;
   cursor: pointer;
-  color: #2563EB;
+  color: var(--accent);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
 }
 .voice-empty {
   padding: 24px 20px;
@@ -511,82 +625,78 @@ body {
   text-align: center;
   line-height: 1.5;
 }
-.voice-tip {
-  padding: 12px 20px;
-  font-size: 13px;
-  color: var(--text-2);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
 
-/* ── Battery alert button ── */
+/* ── Botão de bateria fraca ─────────────────────────────────────────────── */
 .battery-alert .phrase-btn-main {
-  background: linear-gradient(135deg, #B45309, #D97706);
-  border: 2px solid #F59E0B;
-  animation: pulse-battery 2s ease-in-out infinite;
+  background: linear-gradient(135deg, #92400E, #B45309);
+  border-radius: calc(var(--radius) - 2px);
+  animation: pulse-battery 2.2s ease-in-out infinite;
 }
 .battery-pct {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #FEF3C7;
-  opacity: 0.9;
 }
 @keyframes pulse-battery {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
+  0%, 100% { box-shadow: 0 0 0 0   rgba(245,158,11,0.5); }
+  50%       { box-shadow: 0 0 0 10px rgba(245,158,11,0); }
 }
 
-/* ── Fall detection overlay ── */
+/* ── Overlay de alerta de queda ─────────────────────────────────────────── */
 .fall-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(220, 38, 38, 0.92);
+  background: rgba(185, 28, 28, 0.94);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: fall-fade-in 0.3s ease;
+  animation: fall-fade-in 0.25s ease;
 }
 @keyframes fall-fade-in {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: scale(1); }
 }
 .fall-card {
   background: #fff;
-  border-radius: 24px;
-  padding: 40px 32px 32px;
+  border-radius: 28px;
+  padding: 44px 32px 32px;
   text-align: center;
   max-width: 320px;
   width: 90%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  gap: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.45);
 }
 .fall-icon {
-  font-size: 64px;
-  animation: fall-shake 0.5s ease infinite alternate;
+  font-size: 72px;
+  animation: fall-shake 0.55s ease infinite alternate;
 }
 @keyframes fall-shake {
-  from { transform: rotate(-8deg); }
-  to   { transform: rotate(8deg); }
+  from { transform: rotate(-10deg); }
+  to   { transform: rotate(10deg); }
 }
 .fall-text {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #DC2626;
   line-height: 1.4;
 }
 .fall-dismiss {
-  margin-top: 8px;
-  padding: 14px 32px;
-  font-size: 16px;
+  margin-top: 4px;
+  padding: 16px 32px;
+  font-size: 17px;
   font-weight: 700;
-  background: #16A34A;
+  background: #15803D;
   color: #fff;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
   width: 100%;
+  min-height: 56px;
+  touch-action: manipulation;
+  transition: background 0.15s;
 }
+.fall-dismiss:hover { background: #166534; }

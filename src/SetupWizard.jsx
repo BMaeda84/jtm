@@ -202,7 +202,12 @@ export function SetupWizard({ onComplete }) {
   // Tela de boas-vindas — escolha do modo de controle
   return (
     <div className="wizard">
-      <div className="wizard-logo">JTM</div>
+      {/* Logo grande na tela de boas-vindas */}
+      <img
+        src={`${import.meta.env.BASE_URL}logo.svg`}
+        alt="JTM — Comunicação Aumentativa e Alternativa"
+        className="wizard-logo-img"
+      />
       <p className="wizard-subtitle">
         App de comunicação para pessoas com dificuldades de fala.{'\n'}
         Como você quer controlar o app?

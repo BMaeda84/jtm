@@ -289,19 +289,47 @@ function App({ onResetSetup }) {
 
       {/* Header: logo, indicador de fala ativa, status da câmera, ações */}
       <header className="app-header">
-        <span className="app-logo">JTM</span>
-        <span className={`speaking-indicator${lastSpoken ? ' visible' : ''}`}>
+        {/* Marca JTM: ícone olho + wordmark */}
+        <div className="app-logo-wrap" aria-label="JTM — Comunicação Aumentativa e Alternativa">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.svg`}
+            alt=""
+            aria-hidden="true"
+            className="app-logo-img"
+          />
+          <span className="app-logo">JTM</span>
+        </div>
+
+        {/* Anunciado por leitores de tela quando uma frase é falada */}
+        <span
+          className={`speaking-indicator${lastSpoken ? ' visible' : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           🔊 {lastSpoken?.label}
         </span>
+
         <div className="header-actions">
-          {usingPiper && <span className="piper-badge">Piper</span>}
+          {usingPiper && <span className="piper-badge" aria-label="Usando voz Piper neural">Piper</span>}
           {faceEnabled && (
-            <span className={`gaze-badge gaze-${faceStatus}`}>
+            <span
+              className={`gaze-badge gaze-${faceStatus}`}
+              aria-label={`Câmera: ${{ idle: 'aguardando', loading: 'iniciando', active: 'ativa', error: 'erro' }[faceStatus]}`}
+            >
               {{ idle: '👁️', loading: '⏳', active: '👁️✓', error: '👁️✗' }[faceStatus]}
             </span>
           )}
-          <button className="icon-btn" onClick={() => setShowHistory(true)} title="Histórico">🕐</button>
-          <button className="icon-btn" onClick={() => setShowSettings(true)} title="Configurações">⚙️</button>
+          <button
+            className="icon-btn"
+            onClick={() => setShowHistory(true)}
+            aria-label="Ver histórico de frases"
+          >🕐</button>
+          <button
+            className="icon-btn"
+            onClick={() => setShowSettings(true)}
+            aria-label="Abrir configurações"
+          >⚙️</button>
         </div>
       </header>
 
@@ -532,15 +560,21 @@ function PhraseButton({ label, emoji, phrase, categoryColor, isFavorite, isScann
       data-gaze-label={label}
       data-gaze-emoji={emoji}
     >
-      <button className="phrase-btn-main" onClick={handlePress}>
-        <span className="phrase-emoji">{emoji}</span>
+      <button
+        className="phrase-btn-main"
+        onClick={handlePress}
+        aria-label={phrase}
+      >
+        <span className="phrase-emoji" aria-hidden="true">{emoji}</span>
         <span className="phrase-label">{label}</span>
       </button>
       <button
         className={`fav-btn${isFavorite ? ' active' : ''}`}
         onClick={() => onToggleFavorite(phrase)}
+        aria-label={isFavorite ? `Remover "${label}" dos favoritos` : `Adicionar "${label}" aos favoritos`}
+        aria-pressed={isFavorite}
       >
-        {isFavorite ? '⭐' : '☆'}
+        <span aria-hidden="true">{isFavorite ? '⭐' : '☆'}</span>
       </button>
     </div>
   )
