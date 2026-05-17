@@ -166,13 +166,18 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
       const fx = filterX.current(ratioX, t)
       const fy = filterY.current(ratioY, t)
 
-      // Always expose the filtered raw ratios so CalibrationStep can collect them.
-      // gazePoint is post-transform (screen coords); rawGaze is pre-transform (iris space).
-      // Calibration must be trained and applied in the same coordinate space.
-      setRawGaze({ x: fx, y: fy })
+      // Flip X so that "looking right" maps to higher x values, matching screen convention.
+      // In a front-facing (selfie) camera the image is horizontally mirrored: the iris
+      // moves LEFT in pixel space when the user looks RIGHT. Inverting X here makes the
+      // coordinate space intuitive for both calibration training and production inference.
+      // Both paths (calibration collection via rawGaze and production via applyTransform)
+      // must use the same flipped space so the learned transform stays valid.
+      const ix = 1 - fx   // iris X, mirroring corrected
+
+      setRawGaze({ x: ix, y: fy })
 
       if (calibRef.current) {
-        setGazePoint(applyTransform(calibRef.current, { x: fx, y: fy }))
+        setGazePoint(applyTransform(calibRef.current, { x: ix, y: fy }))
       } else {
         // Uncalibrated fallback.
         // ratioX ∈ [0,1] centered at 0.5 — mirror and scale.
