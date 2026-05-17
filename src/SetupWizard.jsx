@@ -6,13 +6,17 @@
 //   no localStorage). Guia o usuário por uma sequência de telas:
 //
 //   [welcome] → escolha do modo:
-//     ├── Toque → marca setup como feito → entra no app
-//     ├── Varredura → [scan-trigger] → escolhe gatilho → entra no app
-//     └── Rastreamento ocular → [calibration] → coleta dados → [done] → entra no app
+//     ├── Toque    → marca setup → entra no app (sem câmera)
+//     ├── Varredura → [scan-trigger] → escolhe gatilho:
+//     │     ├── auto   → marca setup → entra no app (sem câmera)
+//     │     └── piscar/boca → [precheck] → [gesture-calib] → entra no app
+//     └── Rastreamento ocular → [precheck] → [calibration] → [done] → entra no app
 //
 // COMPONENTES:
-//   SetupWizard      — controlador de fluxo (gerencia a máquina de estados de steps)
+//   SetupWizard      — controlador de fluxo (máquina de estados de steps)
 //   ScanTriggerStep  — seleção do gatilho de varredura (piscar / boca / automático)
+//   PreCheckStep     — verifica câmera + WASM antes de prosseguir; exibe erros com instruções OS-específicas
+//   GestureCalibStep — confirma que piscar/boca está sendo detectado pelo MediaPipe
 //   CalibrationStep  — calibração de rastreamento ocular (complexo — ver detalhes abaixo)
 //
 // CALIBRAÇÃO — CONCEITO GERAL:
@@ -56,9 +60,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
+import { FilesetResolver } from '@mediapipe/tasks-vision'  // usado no PreCheckStep para testar o WASM
 import { useFaceTracking } from './useFaceTracking'
 import { fitTransform, saveTransform, saveTremorProfile, clearTransform, clearTremorProfile } from './calibration'
 import './SetupWizard.css'
+
+// Versão pinada do WASM do MediaPipe — deve ser mantida em sincronia com useFaceTracking.js.
+// Duplicada aqui para que o PreCheckStep possa testá-la independentemente do hook de tracking.
+const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm'
 
 // ── Constantes de calibração ──────────────────────────────────────────────────
 
@@ -132,50 +141,94 @@ export function resetSetup() {
 // ─────────────────────────────────────────────────────────────────────────────
 export function SetupWizard({ onComplete }) {
   // Máquina de estados do wizard: tela atual sendo exibida
-  const [step, setStep] = useState('welcome') // 'welcome' | 'scan-trigger' | 'calibration' | 'done'
+  // 'welcome' | 'scan-trigger' | 'precheck' | 'calibration' | 'gesture-calib' | 'done'
+  const [step, setStep] = useState('welcome')
 
-  // Usuário escolheu toque — modo mais simples, sem câmera
+  // Preserva as escolhas do usuário enquanto navega pelo wizard
+  const [chosenMode,    setChosenMode]    = useState(null)  // 'touch'|'scan'|'gaze'
+  const [chosenTrigger, setChosenTrigger] = useState(null)  // 'blink'|'mouth'|'auto'|null
+
+  // Modo toque: não precisa de câmera — setup imediato
   function chooseTouch() {
     markSetupDone()
     onComplete({ mode: 'touch' })
   }
 
-  // Avança para escolha de gatilho de varredura
   function chooseScanning() {
+    setChosenMode('scan')
     setStep('scan-trigger')
   }
 
-  // Usuário confirmou o gatilho de varredura; salva e entra no app
   function confirmScanning(trigger) {
-    markSetupDone()
-    onComplete({ mode: 'scan', trigger })
+    setChosenTrigger(trigger)
+    if (trigger === 'auto') {
+      // Auto-varredura usa apenas timer — não precisa de câmera nem de verificação de gesto
+      markSetupDone()
+      onComplete({ mode: 'scan', trigger: 'auto' })
+    } else {
+      // Piscar/boca: precisa câmera + WASM; vai verificar antes de calibrar
+      setStep('precheck')
+    }
   }
 
-  // Avança para a tela de calibração ocular
   function chooseGaze() {
-    setStep('calibration')
+    setChosenMode('gaze')
+    setStep('precheck')
   }
 
-  // Calibração concluída com sucesso — salva os dados e vai para tela "done"
+  // PreCheckStep concluiu com sucesso → próximo passo depende do modo
+  function onPreCheckSuccess() {
+    if (chosenMode === 'gaze') {
+      setStep('calibration')
+    } else {
+      // scan com piscar ou boca: confirma que o gesto está sendo detectado
+      setStep('gesture-calib')
+    }
+  }
+
+  // Calibração ocular concluída — salva os dados e exibe tela de sucesso
   function onCalibDone(transform, tremorProfile) {
     saveTransform(transform)       // persiste a matriz afim em localStorage
     saveTremorProfile(tremorProfile)  // persiste os params do One Euro Filter
     setStep('done')
   }
 
-  // Usuário pulou a calibração — ainda pode usar o olhar, mas sem precisão garantida
+  // Usuário pulou a calibração — usa rastreamento sem transform personalizado
   function onCalibSkip() {
     markSetupDone()
     onComplete({ mode: 'gaze', calibrated: false })
   }
 
-  // Tela "done" → botão de entrada no app
   function finishGaze() {
     markSetupDone()
     onComplete({ mode: 'gaze', calibrated: true })
   }
 
-  // Renderiza o step atual
+  // GestureCalibStep concluiu (ou foi pulado) — entra no app
+  function onGestureDone() {
+    markSetupDone()
+    onComplete({ mode: 'scan', trigger: chosenTrigger })
+  }
+
+  if (step === 'precheck') {
+    return (
+      <PreCheckStep
+        onSuccess={onPreCheckSuccess}
+        onBack={() => setStep(chosenMode === 'gaze' ? 'welcome' : 'scan-trigger')}
+      />
+    )
+  }
+
+  if (step === 'gesture-calib') {
+    return (
+      <GestureCalibStep
+        trigger={chosenTrigger}
+        onDone={onGestureDone}
+        onSkip={onGestureDone}  // pular = aceitar e entrar mesmo sem confirmar
+      />
+    )
+  }
+
   if (step === 'calibration') {
     return <CalibrationStep onDone={onCalibDone} onSkip={onCalibSkip} />
   }
@@ -202,7 +255,6 @@ export function SetupWizard({ onComplete }) {
   // Tela de boas-vindas — escolha do modo de controle
   return (
     <div className="wizard">
-      {/* Logo grande na tela de boas-vindas */}
       <img
         src={`${import.meta.env.BASE_URL}logo.svg`}
         alt="JTM — Comunicação Aumentativa e Alternativa"
@@ -269,6 +321,270 @@ function ScanTriggerStep({ onConfirm, onBack }) {
         Confirmar
       </button>
       <button className="wizard-back" onClick={onBack}>← Voltar</button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PreCheckStep — verificação automática de câmera + WASM antes de calibrar
+//
+// Executa dois passos em sequência, sem interação do usuário salvo erro:
+//   1. getUserMedia: verifica se a câmera existe e se a permissão foi concedida.
+//      Libera o stream imediatamente após — só precisamos confirmar o acesso.
+//   2. FilesetResolver.forVisionTasks(): inicializa o ambiente WASM do MediaPipe.
+//      Isso baixa os arquivos da CDN (~5 MB) e testa se a CSP permite o acesso.
+//      O modelo neural (.task, ~11 MB) é baixado depois, na CalibrationStep.
+//
+// Em caso de erro, exibe instruções específicas por tipo de falha e OS.
+// O botão "Tentar novamente" re-executa os passos a partir do início.
+//
+// Props:
+//   onSuccess() — chamado automaticamente quando os dois passos passam
+//   onBack()    — chamado se o usuário quiser voltar e escolher outro modo
+// ─────────────────────────────────────────────────────────────────────────────
+function PreCheckStep({ onSuccess, onBack }) {
+  // 'pending'|'checking'|'ok'|'denied'|'error'
+  const [cameraStatus, setCameraStatus] = useState('pending')
+  // 'pending'|'loading'|'ok'|'error'
+  const [wasmStatus, setWasmStatus] = useState('pending')
+  // null | 'camera-denied' | 'camera-error' | 'wasm-error'
+  const [errorType, setErrorType] = useState(null)
+
+  // retryCount: incrementar força o useEffect a re-executar (re-verificação)
+  const [retryCount, setRetryCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function run() {
+      // ── Passo 1: câmera ──────────────────────────────────────────────────
+      setCameraStatus('checking')
+      setWasmStatus('pending')
+      setErrorType(null)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
+        })
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        // Libera o stream imediatamente — CalibrationStep abrirá a câmera novamente
+        stream.getTracks().forEach(t => t.stop())
+        if (!cancelled) setCameraStatus('ok')
+      } catch (e) {
+        if (cancelled) return
+        // NotAllowedError: usuário ou sistema operacional negou explicitamente
+        const denied = e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError'
+        setCameraStatus(denied ? 'denied' : 'error')
+        setErrorType(denied ? 'camera-denied' : 'camera-error')
+        return  // sem câmera → não tem sentido checar WASM
+      }
+
+      // ── Passo 2: WASM do MediaPipe ───────────────────────────────────────
+      // Testa se a CDN está acessível, se a CSP permite script-src + worker-src,
+      // e se o dispositivo consegue compilar WASM (wasm-unsafe-eval).
+      setWasmStatus('loading')
+      try {
+        await FilesetResolver.forVisionTasks(WASM_URL)
+        if (cancelled) return
+        setWasmStatus('ok')
+        // Pausa curta para o usuário ver o ✓ antes de avançar automaticamente
+        setTimeout(() => { if (!cancelled) onSuccess() }, 600)
+      } catch (e) {
+        if (cancelled) return
+        setWasmStatus('error')
+        setErrorType('wasm-error')
+      }
+    }
+
+    run()
+    return () => { cancelled = true }
+  }, [retryCount])  // re-executa quando o usuário clica em "Tentar novamente"
+
+  // Detecta o SO para mostrar instruções de permissão específicas
+  const isIOS     = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  const isAndroid = /Android/.test(navigator.userAgent)
+
+  // Instrução de como desbloquear a câmera após negação, por SO
+  const cameraFixMsg = isIOS
+    ? 'Vá em Ajustes → Safari → Câmera → Permitir. Depois volte ao app e tente novamente.'
+    : isAndroid
+      ? 'Toque em 🔒 na barra do navegador → Permissões → Câmera → Permitir. Depois recarregue a página.'
+      : 'Clique no ícone de câmera ou cadeado na barra do navegador e permita o acesso à câmera.'
+
+  // Ícone e cor de cada estado
+  function stepIcon(status) {
+    return { pending: '·', checking: '⌛', loading: '⌛', ok: '✅', denied: '🚫', error: '❌' }[status] ?? '·'
+  }
+  function stepColor(status) {
+    return { ok: '#22C55E', denied: '#EF4444', error: '#EF4444' }[status] ?? '#94A3B8'
+  }
+
+  return (
+    <div className="wizard">
+      <p className="wizard-title">Verificando requisitos</p>
+
+      {/* Lista de passos com ícone de status */}
+      <div className="precheck-steps">
+        {[
+          { label: 'Câmera',        status: cameraStatus },
+          { label: 'Motor de IA',   status: wasmStatus   },
+        ].map(({ label, status }) => (
+          <div key={label} className="precheck-step-row">
+            <span className="precheck-step-icon">{stepIcon(status)}</span>
+            <span className="precheck-step-label" style={{ color: stepColor(status) }}>{label}</span>
+            {status === 'loading' && (
+              <span className="precheck-step-hint">baixando...</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Mensagens de erro com instruções específicas */}
+      {errorType === 'camera-denied' && (
+        <div className="precheck-error-box">
+          <strong>Câmera bloqueada</strong>
+          <p>{cameraFixMsg}</p>
+          <button className="wizard-confirm-btn" onClick={() => window.location.reload()}>
+            Recarregar após permitir
+          </button>
+        </div>
+      )}
+
+      {errorType === 'camera-error' && (
+        <div className="precheck-error-box">
+          <strong>Câmera não encontrada</strong>
+          <p>Verifique se o dispositivo tem câmera frontal disponível e tente novamente.</p>
+          <button className="wizard-confirm-btn" onClick={() => setRetryCount(c => c + 1)}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {errorType === 'wasm-error' && (
+        <div className="precheck-error-box">
+          <strong>Falha ao baixar motor de IA</strong>
+          <p>Verifique sua conexão com a internet e tente novamente. O download é de ~5 MB.</p>
+          <button className="wizard-confirm-btn" onClick={() => setRetryCount(c => c + 1)}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {!errorType && (
+        <p className="precheck-hint">
+          {cameraStatus !== 'ok' ? 'Verificando câmera...' : 'Baixando motor de IA (~5 MB)...'}
+        </p>
+      )}
+
+      <button className="wizard-back" onClick={onBack}>← Voltar</button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GestureCalibStep — confirma que piscar/boca está sendo detectado
+//
+// Exibida após o PreCheckStep quando o gatilho de varredura é 'blink' ou 'mouth'.
+// Inicia o rastreamento facial e aguarda o usuário fazer o gesto solicitado.
+// Detectado → exibe ✓ por 1,5s e avança automaticamente.
+// Timeout de 12s sem detecção → exibe dica de posicionamento + botão de pular.
+//
+// Baseline: registramos blinkCount/mouthCount quando status vira 'active'
+// para não confundir eventos do próprio init com gestos intencionais do usuário.
+//
+// Props:
+//   trigger  — 'blink' | 'mouth'
+//   onDone() — gesto detectado com sucesso (ou skipped)
+//   onSkip() — usuário quer pular a verificação
+// ─────────────────────────────────────────────────────────────────────────────
+function GestureCalibStep({ trigger, onDone, onSkip }) {
+  const [detected,  setDetected]  = useState(false)
+  const [timedOut,  setTimedOut]  = useState(false)
+  const detectedRef = useRef(false)
+  // Valores iniciais de blinkCount/mouthCount no momento em que a câmera ficou ativa.
+  // Qualquer incremento acima desses valores é um gesto intencional do usuário.
+  const baselineRef = useRef({ blink: null, mouth: null })
+
+  const { blinkCount, mouthCount, status, videoRef } = useFaceTracking(true)
+
+  // Registra o baseline assim que o tracking ficar ativo
+  useEffect(() => {
+    if (status === 'active' && baselineRef.current.blink === null) {
+      baselineRef.current = { blink: blinkCount, mouth: mouthCount }
+    }
+  }, [status, blinkCount, mouthCount])
+
+  // Monitora gestos após o baseline estar definido
+  useEffect(() => {
+    if (detectedRef.current || status !== 'active' || baselineRef.current.blink === null) return
+    const blinked = trigger === 'blink' && blinkCount > baselineRef.current.blink
+    const mouthed = trigger === 'mouth' && mouthCount > baselineRef.current.mouth
+    if (blinked || mouthed) {
+      detectedRef.current = true
+      setDetected(true)
+      // Exibe o estado de sucesso brevemente antes de avançar
+      setTimeout(onDone, 1500)
+    }
+  }, [blinkCount, mouthCount, status, trigger, onDone])
+
+  // Timeout de 12s após câmera ativa: mostra dica se o gesto não foi detectado
+  useEffect(() => {
+    if (status !== 'active') return
+    const t = setTimeout(() => { if (!detectedRef.current) setTimedOut(true) }, 12000)
+    return () => clearTimeout(t)
+  }, [status])
+
+  const icon        = trigger === 'blink' ? '😉' : '😮'
+  const instruction = trigger === 'blink'
+    ? 'Pisque um olho intencionalmente'
+    : 'Abra bem a boca por um instante'
+
+  return (
+    <div className="wizard">
+      {/* Preview da câmera para que o usuário saiba que está sendo detectado */}
+      <video
+        ref={videoRef}
+        autoPlay playsInline muted
+        className="gesture-video-preview"
+      />
+
+      {detected ? (
+        <div className="calib-done">
+          <span className="calib-done-icon">✅</span>
+          <span className="calib-done-title">Detectado!</span>
+          <span className="calib-done-desc">O gesto está funcionando perfeitamente.</span>
+        </div>
+      ) : (
+        <>
+          <div className="gesture-icon">{icon}</div>
+          <p className="wizard-title">
+            {status === 'loading' ? 'Iniciando câmera...'
+              : status === 'error' ? 'Erro ao acessar câmera'
+              : instruction}
+          </p>
+          {status === 'active' && (
+            <p className="wizard-subtitle" style={{ marginBottom: 0 }}>
+              Câmera ativa — fique a 30–60 cm de distância, com rosto bem iluminado.
+            </p>
+          )}
+          {timedOut && (
+            <div className="precheck-error-box">
+              <strong>Gesto não detectado</strong>
+              <p>
+                Certifique-se de que o rosto está visível no preview acima e bem iluminado.
+                {trigger === 'blink'
+                  ? ' Pisque com mais intensidade — feche o olho por pelo menos 0,2 segundos.'
+                  : ' Abra bem a boca, como se fosse bocejar.'}
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {!detected && (
+        <button className="wizard-back" style={{ marginTop: 20 }} onClick={onSkip}>
+          Pular esta verificação
+        </button>
+      )}
     </div>
   )
 }

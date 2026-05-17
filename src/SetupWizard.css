@@ -126,6 +126,82 @@
   touch-action: manipulation;
 }
 
+/* ── PreCheckStep ── */
+.precheck-steps {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 24px;
+  border: 1px solid #1E293B;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.precheck-step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #1E293B;
+}
+
+.precheck-step-row:last-child { border-bottom: none; }
+
+.precheck-step-icon  { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.precheck-step-label { font-size: 15px; font-weight: 600; flex: 1; }
+.precheck-step-hint  { font-size: 12px; color: #475569; }
+
+/* Caixa de erro com instruções de correção */
+.precheck-error-box {
+  width: 100%;
+  max-width: 340px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+  margin-bottom: 16px;
+}
+
+.precheck-error-box strong {
+  display: block;
+  color: #FCA5A5;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.precheck-error-box p {
+  color: #94A3B8;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.precheck-error-box .wizard-confirm-btn { margin-top: 0; }
+
+.precheck-hint {
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 16px;
+}
+
+/* ── GestureCalibStep ── */
+/* Preview de câmera compacto — deixa o usuário saber que está sendo detectado */
+.gesture-video-preview {
+  width: 100px;
+  height: 75px;
+  border-radius: 10px;
+  border: 2px solid #60A5FA;
+  object-fit: cover;
+  margin-bottom: 16px;
+}
+
+/* Ícone grande do gesto (😉 ou 😮) */
+.gesture-icon {
+  font-size: 72px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
 /* ── Calibration step ── */
 .calib-screen {
   position: fixed;

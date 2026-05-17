@@ -125,7 +125,10 @@ function App({ onResetSetup }) {
 
   // faceEnabled: determina se a câmera deve ser ligada.
   // DEVE ser declarado ANTES de useFallDetection para evitar TDZ ReferenceError.
-  const faceEnabled = gazeEnabled || scanEnabled
+  //
+  // Auto-varredura avança por timer — não precisa de câmera para detecção de gesto.
+  // Piscar/boca precisam do MediaPipe; por isso só ligamos a câmera nesses casos.
+  const faceEnabled = gazeEnabled || (scanEnabled && scanTrigger !== 'auto')
 
   // ── Bateria ───────────────────────────────────────────────────────────────
   // battery: { level: 0–1, charging: boolean } | null
