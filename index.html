@@ -15,8 +15,13 @@
       Content Security Policy (A05 / A08)
       ─────────────────────────────────────────────────────────────────────────
       default-src 'none'          → bloqueia tudo que não for explicitamente permitido
-      script-src  'self' blob:    → só bundles locais + WASM instanciado como blob worker
-                  'wasm-unsafe-eval' → necessário para JIT do WASM do MediaPipe / Piper
+      script-src  'self' blob: https://cdn.jsdelivr.net
+                  → 'self' cobre os bundles do Vite; blob: cobre workers criados como blob;
+                    cdn.jsdelivr.net é necessário porque o worker do MediaPipe usa
+                    importScripts() para carregar o loader WASM a partir do CDN.
+                    O script-src é aplicado a importScripts() dentro de workers (spec CSP3),
+                    por isso a mesma origem precisa aparecer aqui E no worker-src.
+                  'wasm-unsafe-eval' → necessário para JIT/compilação do WASM do MediaPipe / Piper
       style-src   'self' 'unsafe-inline' → React usa style={} que vira atributo inline
       connect-src → permite fetch dos binários do MediaPipe (CDN pinado) e modelo de IA
       worker-src  'self' blob: https://cdn.jsdelivr.net
@@ -33,7 +38,7 @@
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'none';
-      script-src 'self' blob: 'wasm-unsafe-eval';
+      script-src 'self' blob: https://cdn.jsdelivr.net 'wasm-unsafe-eval';
       style-src 'self' 'unsafe-inline';
       connect-src 'self'
         https://cdn.jsdelivr.net
