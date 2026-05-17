@@ -36,7 +36,7 @@ const MOUTH_MIN_MS    = 80
 // videoRef is created here and returned — the caller must render:
 //   <video ref={videoRef} autoPlay playsInline muted />
 // This keeps the element in the React tree, avoiding Strict Mode / DOM issues.
-export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = null) {
+export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = null, tremorProfile = null) {
   const [gazePoint,  setGazePoint]  = useState(null)
   const [blinkCount, setBlinkCount] = useState(0)
   const [mouthCount, setMouthCount] = useState(0)
@@ -62,8 +62,9 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
       return
     }
 
-    filterX.current = makeOneEuro()
-    filterY.current = makeOneEuro()
+    const { minCutoff = 0.5, beta = 1.6 } = tremorProfile || {}
+    filterX.current = makeOneEuro({ minCutoff, beta })
+    filterY.current = makeOneEuro({ minCutoff, beta })
 
     let cancelled = false
     setStatus('loading')
@@ -197,7 +198,7 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
 
     init()
     return () => { cancelled = true; cleanup() }
-  }, [enabled, sensitivity])
+  }, [enabled, sensitivity, tremorProfile])
 
   function cleanup() {
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }

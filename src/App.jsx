@@ -7,7 +7,7 @@ import { useFaceTracking } from './useFaceTracking'
 import { useScanning } from './useScanning'
 import { GazeCursor } from './GazeCursor'
 import { SetupWizard, needsSetup, resetSetup } from './SetupWizard'
-import { loadTransform } from './calibration'
+import { loadTransform, loadTremorProfile } from './calibration'
 import './App.css'
 
 const DIGITAR_ID = '__digitar__'
@@ -49,8 +49,9 @@ function App({ onResetSetup }) {
 
   const usingPiper  = piperState === 'ready'
   const faceEnabled    = gazeEnabled || scanEnabled
-  const calibTransform = useMemo(() => gazeEnabled ? loadTransform() : null, [gazeEnabled])
-  const { gazePoint, blinkCount, mouthCount, status: faceStatus, videoRef: faceVideoRef } = useFaceTracking(faceEnabled, 1.8, calibTransform)
+  const calibTransform = useMemo(() => gazeEnabled ? loadTransform()     : null, [gazeEnabled])
+  const tremorProfile  = useMemo(() => gazeEnabled ? loadTremorProfile() : null, [gazeEnabled])
+  const { gazePoint, blinkCount, mouthCount, status: faceStatus, videoRef: faceVideoRef } = useFaceTracking(faceEnabled, 1.8, calibTransform, tremorProfile)
 
   useEffect(() => {
     isPiperCached().then(cached => setPiperState(cached ? 'ready' : 'prompt'))
@@ -154,19 +155,6 @@ function App({ onResetSetup }) {
           autoPlay playsInline muted
           style={{ position: 'fixed', top: -9999, left: -9999, width: 320, height: 240, pointerEvents: 'none' }}
         />
-      )}
-
-      {faceEnabled && (
-        <div style={{
-          background: 'rgba(0,0,0,0.75)', color: '#fff', fontSize: 11,
-          padding: '3px 8px', display: 'flex', gap: 12, flexWrap: 'wrap',
-          fontFamily: 'monospace', zIndex: 1000, position: 'relative',
-        }}>
-          <span>cam:{faceStatus}</span>
-          <span>👁{blinkCount}</span>
-          <span>😮{mouthCount}</span>
-          {gazePoint && <span>xy:{gazePoint.x.toFixed(2)},{gazePoint.y.toFixed(2)}</span>}
-        </div>
       )}
 
       {piperState === 'prompt' && (

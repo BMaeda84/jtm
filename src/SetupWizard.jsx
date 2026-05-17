@@ -1,12 +1,14 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useFaceTracking } from './useFaceTracking'
-import { fitTransform, saveTransform } from './calibration'
+import { fitTransform, saveTransform, saveTremorProfile } from './calibration'
 import './SetupWizard.css'
 
 const SETUP_KEY  = 'jtm_setup_done'
-const WARMUP_MS  = 400
-const COLLECT_MS = 1000
-const PASSES     = 2
+const WARMUP_MS        = 400
+const STABILITY_WINDOW = 15    // frames in rolling iris buffer (~250ms at 60fps)
+const STABILITY_THR    = 0.018 // max combined XY stddev to be considered "stable"
+const STABLE_NEEDED    = 20    // stable frames required to confirm each target
+const PASSES           = 2
 
 // Mock layout matching the real app structure so target positions are accurate
 const MOCK_PHRASES = [
@@ -66,8 +68,9 @@ export function SetupWizard({ onComplete }) {
     setStep('calibration')
   }
 
-  function onCalibDone(transform) {
+  function onCalibDone(transform, tremorProfile) {
     saveTransform(transform)
+    saveTremorProfile(tremorProfile)
     setStep('done')
   }
 
@@ -170,18 +173,33 @@ function ScanTriggerStep({ onConfirm, onBack }) {
   )
 }
 
+// Maps per-target iris stddev values to One Euro Filter params
+function computeTremorProfile(variances) {
+  if (!variances.length) return { minCutoff: 0.5, beta: 1.6 }
+  const sorted = [...variances].sort((a, b) => a - b)
+  const median = sorted[Math.floor(sorted.length / 2)]
+  const LOW = 0.006, HIGH = 0.020
+  const t = Math.max(0, Math.min(1, (median - LOW) / (HIGH - LOW)))
+  // More tremor (t→1) → lower minCutoff (more baseline smoothing)
+  return { minCutoff: parseFloat((0.70 - t * 0.45).toFixed(3)), beta: 1.6 }
+}
+
 // ─────────────────────────────────────────────
 function CalibrationStep({ onDone, onSkip }) {
   const [targetIdx, setTargetIdx] = useState(0)
   const [pass,      setPass]      = useState(0)
   const [phase,     setPhase]     = useState('waiting') // waiting | warmup | collecting
   const [progress,  setProgress]  = useState(0)
+  const [isLocked,  setIsLocked]  = useState(false) // true when gaze is stably on target
 
-  const targetRefs  = useRef([])
-  const positions   = useRef([])  // {x,y} screen-normalized, set after layout
-  const samplesRef  = useRef([])
-  const allDataRef  = useRef([])
-  const phaseStart  = useRef(0)
+  const targetRefs   = useRef([])
+  const positions    = useRef([])  // {x,y} screen-normalized, set after layout
+  const samplesRef   = useRef([])  // stable iris samples for current target
+  const allDataRef   = useRef([])  // accumulated (screen, iris) pairs across all targets
+  const irisWindowRef = useRef([]) // rolling buffer for stability detection
+  const stableCountRef = useRef(0) // stable frames accumulated for current target
+  const varDataRef   = useRef([])  // per-target stddev for tremor profiling
+  const phaseStart   = useRef(0)
 
   const { gazePoint: rawIris, status, videoRef } = useFaceTracking(true)
 
@@ -204,15 +222,16 @@ function CalibrationStep({ onDone, onSkip }) {
     }
   }, [status])
 
-  // Collect samples each time gazePoint updates
+  // Main calibration loop — runs on every iris update
   useEffect(() => {
     if (!rawIris || status !== 'active' || phase === 'waiting') return
 
-    const now     = performance.now()
-    const elapsed = now - phaseStart.current
+    const now = performance.now()
 
     if (phase === 'warmup') {
-      if (elapsed >= WARMUP_MS) {
+      if (now - phaseStart.current >= WARMUP_MS) {
+        irisWindowRef.current = []
+        stableCountRef.current = 0
         samplesRef.current = []
         phaseStart.current = now
         setPhase('collecting')
@@ -220,57 +239,84 @@ function CalibrationStep({ onDone, onSkip }) {
       return
     }
 
-    // collecting
-    samplesRef.current.push({ x: rawIris.x, y: rawIris.y })
-    const pct = Math.min(elapsed / COLLECT_MS, 1)
+    // ── collecting: only count stable fixation frames ──
+    const win = irisWindowRef.current
+    win.push({ x: rawIris.x, y: rawIris.y })
+    if (win.length > STABILITY_WINDOW) win.shift()
+    if (win.length < STABILITY_WINDOW) return  // wait until buffer is full
+
+    // Compute combined XY standard deviation of the rolling window
+    const n  = win.length
+    const mx = win.reduce((s, p) => s + p.x, 0) / n
+    const my = win.reduce((s, p) => s + p.y, 0) / n
+    const vx = win.reduce((s, p) => s + (p.x - mx) ** 2, 0) / n
+    const vy = win.reduce((s, p) => s + (p.y - my) ** 2, 0) / n
+    const stddev = Math.sqrt(vx + vy)
+
+    const stable = stddev < STABILITY_THR
+    setIsLocked(stable)
+
+    if (stable) {
+      stableCountRef.current++
+      samplesRef.current.push({ x: rawIris.x, y: rawIris.y })
+    }
+
+    const pct = Math.min(stableCountRef.current / STABLE_NEEDED, 1)
     setProgress(pct)
     if (pct < 1) return
 
-    // Finished collecting this target — average samples
-    const n   = samplesRef.current.length
+    // ── target confirmed — record data ──
+    varDataRef.current.push(stddev)
+    const m   = samplesRef.current.length
     const avg = samplesRef.current.reduce(
-      (a, s) => ({ x: a.x + s.x / n, y: a.y + s.y / n }),
+      (a, s) => ({ x: a.x + s.x / m, y: a.y + s.y / m }),
       { x: 0, y: 0 }
     )
     allDataRef.current.push({ screen: positions.current[targetIdx], iris: avg })
-    samplesRef.current = []
+
+    // Reset for next target
+    irisWindowRef.current  = []
+    stableCountRef.current = 0
+    samplesRef.current     = []
 
     const nextIdx = targetIdx + 1
     if (nextIdx < TOTAL_TARGETS) {
       setTargetIdx(nextIdx)
       setProgress(0)
+      setIsLocked(false)
       setPhase('warmup')
       phaseStart.current = now
       return
     }
 
-    // Finished a pass
     const nextPass = pass + 1
     if (nextPass < PASSES) {
       setPass(nextPass)
       setTargetIdx(0)
       setProgress(0)
+      setIsLocked(false)
       setPhase('warmup')
       phaseStart.current = now
       return
     }
 
-    // All passes done — fit transform
+    // ── all passes done — fit transform + tremor profile ──
     const irisPoints   = allDataRef.current.map(d => d.iris)
     const screenPoints = allDataRef.current.map(d => d.screen)
-    onDone(fitTransform(irisPoints, screenPoints))
+    onDone(fitTransform(irisPoints, screenPoints), computeTremorProfile(varDataRef.current))
   }, [rawIris]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totalSteps    = TOTAL_TARGETS * PASSES
-  const currentStep   = pass * TOTAL_TARGETS + targetIdx + 1
-  const isPhrase      = targetIdx < MOCK_PHRASES.length
-  const catIdx        = targetIdx - MOCK_PHRASES.length
+  const totalSteps  = TOTAL_TARGETS * PASSES
+  const currentStep = pass * TOTAL_TARGETS + targetIdx + 1
+  const isPhrase    = targetIdx < MOCK_PHRASES.length
+  const catIdx      = targetIdx - MOCK_PHRASES.length
 
   const instruction = status === 'loading' ? '⏳ Iniciando câmera...'
-    : status === 'error'     ? '❌ Câmera indisponível.'
-    : phase === 'waiting'    ? '⏳ Aguardando câmera...'
-    : phase === 'warmup'     ? 'Olhe para o botão destacado'
-    : 'Mantenha o olhar...'
+    : status === 'error'  ? '❌ Câmera indisponível.'
+    : phase === 'waiting' ? '⏳ Aguardando câmera...'
+    : phase === 'warmup'  ? 'Olhe para o botão destacado'
+    : isLocked            ? 'Perfeito — mantendo o olhar...'
+    : 'Fixe o olhar no botão'
 
   // Exact production layout constants (mirrors App.css CSS variables)
   const HEADER_H = 56, NAV_H = 72, GAP = 10
@@ -279,7 +325,7 @@ function CalibrationStep({ onDone, onSkip }) {
     <div style={{
       position: 'fixed', inset: 0, background: '#0F172A',
       display: 'flex', flexDirection: 'column',
-      maxWidth: 600, margin: '0 auto',   // same centering as .app
+      maxWidth: 600, margin: '0 auto',
     }}>
       {/* Camera preview */}
       <video ref={videoRef} autoPlay playsInline muted style={{
@@ -288,40 +334,44 @@ function CalibrationStep({ onDone, onSkip }) {
         border: '2px solid #60A5FA', objectFit: 'cover',
       }} />
 
-      {/* Header — same height as production --header-h: 56px */}
+      {/* Header */}
       <div style={{
         height: HEADER_H, flexShrink: 0, background: '#0F172A',
         borderBottom: '1px solid #1E293B',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 12px',
       }}>
-        <span style={{ color: '#94A3B8', fontSize: 13 }}>{instruction}</span>
+        <span style={{ color: isLocked ? '#22C55E' : '#94A3B8', fontSize: 13, transition: 'color 0.2s' }}>
+          {instruction}
+        </span>
         <span style={{ color: '#475569', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
           {pass + 1}/{PASSES} · {currentStep}/{totalSteps}
         </span>
       </div>
 
-      {/* Phrase grid — mirrors .phrase-grid: 2 cols, gap 10px, padding 10px, min-height 100px */}
+      {/* Phrase grid — mirrors production: 2 cols, 1fr rows, gap/padding 10px */}
       <div style={{
         flex: 1, overflow: 'hidden',
         display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: GAP, padding: GAP, alignContent: 'start',
+        gridAutoRows: '1fr',
+        gap: GAP, padding: GAP,
       }}>
         {MOCK_PHRASES.map((btn, i) => {
-          const active = phase !== 'waiting' && isPhrase && i === targetIdx
+          const active  = phase !== 'waiting' && isPhrase && i === targetIdx
+          const locked  = active && phase === 'collecting' && isLocked
           return (
             <div
               key={i}
               ref={el => { targetRefs.current[i] = el }}
               style={{
-                minHeight: 100, borderRadius: 16,
-                background: active ? 'rgba(37,99,235,0.2)' : '#1E293B',
-                border: `3px solid ${active ? '#60A5FA' : 'transparent'}`,
-                boxShadow: active ? '0 0 0 4px rgba(96,165,250,0.3)' : 'none',
+                borderRadius: 16,
+                background: locked ? 'rgba(34,197,94,0.18)'  : active ? 'rgba(37,99,235,0.2)' : '#1E293B',
+                border: `3px solid ${locked ? '#22C55E' : active ? '#60A5FA' : 'transparent'}`,
+                boxShadow: locked ? '0 0 0 4px rgba(34,197,94,0.3)' : active ? '0 0 0 4px rgba(96,165,250,0.3)' : 'none',
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', gap: 6,
                 position: 'relative', overflow: 'hidden',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
+                transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
               }}
             >
               <span style={{ fontSize: 36, lineHeight: 1 }}>{btn.emoji}</span>
@@ -330,9 +380,11 @@ function CalibrationStep({ onDone, onSkip }) {
               </span>
               {active && phase === 'collecting' && (
                 <div style={{
-                  position: 'absolute', bottom: 0, left: 0, height: 3,
-                  background: '#60A5FA', borderRadius: '0 0 16px 16px',
-                  width: `${progress * 100}%`, transition: 'width 0.1s linear',
+                  position: 'absolute', bottom: 0, left: 0, height: 4,
+                  background: locked ? '#22C55E' : '#475569',
+                  borderRadius: '0 0 16px 16px',
+                  width: `${progress * 100}%`,
+                  transition: locked ? 'width 0.1s linear' : 'none',
                 }} />
               )}
             </div>
@@ -340,7 +392,7 @@ function CalibrationStep({ onDone, onSkip }) {
         })}
       </div>
 
-      {/* Category nav — mirrors .category-nav: height 72px, min-width 70px per btn */}
+      {/* Category nav — mirrors production: height 72px, flex row */}
       <div style={{
         height: NAV_H, flexShrink: 0,
         borderTop: '1px solid #1E293B', display: 'flex',
@@ -348,6 +400,7 @@ function CalibrationStep({ onDone, onSkip }) {
         {MOCK_CATS.map((cat, i) => {
           const gi     = MOCK_PHRASES.length + i
           const active = phase !== 'waiting' && !isPhrase && i === catIdx
+          const locked = active && phase === 'collecting' && isLocked
           return (
             <div
               key={i}
@@ -356,11 +409,11 @@ function CalibrationStep({ onDone, onSkip }) {
                 flex: '0 0 auto', minWidth: 70,
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center', gap: 2,
-                background: active ? 'rgba(37,99,235,0.25)' : 'transparent',
-                border: `2px solid ${active ? '#60A5FA' : 'transparent'}`,
+                background: locked ? 'rgba(34,197,94,0.22)' : active ? 'rgba(37,99,235,0.25)' : 'transparent',
+                border: `2px solid ${locked ? '#22C55E' : active ? '#60A5FA' : 'transparent'}`,
                 borderRadius: 8, position: 'relative', overflow: 'hidden',
-                boxShadow: active ? '0 0 0 2px rgba(96,165,250,0.35)' : 'none',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
+                boxShadow: locked ? '0 0 0 2px rgba(34,197,94,0.35)' : active ? '0 0 0 2px rgba(96,165,250,0.35)' : 'none',
+                transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
               }}
             >
               <span style={{ fontSize: 22 }}>{cat.emoji}</span>
@@ -369,9 +422,10 @@ function CalibrationStep({ onDone, onSkip }) {
               </span>
               {active && phase === 'collecting' && (
                 <div style={{
-                  position: 'absolute', bottom: 0, left: 0,
-                  height: 3, background: '#60A5FA',
-                  width: `${progress * 100}%`, transition: 'width 0.1s linear',
+                  position: 'absolute', bottom: 0, left: 0, height: 4,
+                  background: locked ? '#22C55E' : '#475569',
+                  width: `${progress * 100}%`,
+                  transition: locked ? 'width 0.1s linear' : 'none',
                 }} />
               )}
             </div>

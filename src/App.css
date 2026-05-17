@@ -192,9 +192,10 @@ body {
   overflow-y: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-auto-rows: minmax(100px, 1fr);
   gap: var(--gap);
   padding: var(--gap);
-  align-content: start;
+  align-content: stretch;
 }
 
 .phrase-btn-wrap {

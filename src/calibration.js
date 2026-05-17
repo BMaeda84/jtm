@@ -76,3 +76,17 @@ export function saveTransform(t) {
 export function clearTransform() {
   localStorage.removeItem(CALIB_STORAGE_KEY)
 }
+
+const TREMOR_KEY = 'jtm_tremor'
+
+export function saveTremorProfile(p) {
+  localStorage.setItem(TREMOR_KEY, JSON.stringify(p))
+}
+
+export function loadTremorProfile() {
+  try { return JSON.parse(localStorage.getItem(TREMOR_KEY)) } catch { return null }
+}
+
+export function clearTremorProfile() {
+  localStorage.removeItem(TREMOR_KEY)
+}
