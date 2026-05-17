@@ -8,6 +8,8 @@ import { useScanning } from './useScanning'
 import { GazeCursor } from './GazeCursor'
 import { SetupWizard, needsSetup, resetSetup } from './SetupWizard'
 import { loadTransform, loadTremorProfile } from './calibration'
+import { useBattery } from './useBattery'
+import { useFallDetection, getDeviceType } from './useFallDetection'
 import './App.css'
 
 const DIGITAR_ID = '__digitar__'
@@ -48,6 +50,37 @@ function App({ onResetSetup }) {
   } = useSettings()
 
   const usingPiper  = piperState === 'ready'
+
+  // ── Battery ──────────────────────────────────
+  const battery = useBattery()
+  const batteryLow = battery && battery.level < 0.2 && !battery.charging
+
+  // ── Fall detection ───────────────────────────
+  const [fellAlert, setFellAlert] = useState(null) // null | deviceType string
+  const fallRepeatRef = useRef(null)
+
+  function speakFallPhrase(device) {
+    const phrase = `Por favor, me ajude, meu ${device} caiu`
+    if (usingPiper) speakWithPiper(phrase, speechRate).catch(() => speakNative(phrase, selectedVoice, speechRate))
+    else speakNative(phrase, selectedVoice, speechRate)
+  }
+
+  useFallDetection((device) => {
+    setFellAlert(device)
+    speakFallPhrase(device)
+    if (fallRepeatRef.current) clearInterval(fallRepeatRef.current)
+    fallRepeatRef.current = setInterval(() => speakFallPhrase(device), 18000)
+  })
+
+  function dismissFall() {
+    setFellAlert(null)
+    if (fallRepeatRef.current) { clearInterval(fallRepeatRef.current); fallRepeatRef.current = null }
+  }
+
+  useEffect(() => () => {
+    if (fallRepeatRef.current) clearInterval(fallRepeatRef.current)
+  }, [])
+
   const faceEnabled    = gazeEnabled || scanEnabled
   const calibTransform = useMemo(() => gazeEnabled ? loadTransform()     : null, [gazeEnabled])
   const tremorProfile  = useMemo(() => gazeEnabled ? loadTremorProfile() : null, [gazeEnabled])
@@ -201,6 +234,27 @@ function App({ onResetSetup }) {
         <TextInput onSpeak={handleSpeak} />
       ) : (
         <main className="phrase-grid">
+          {batteryLow && activeCategoryId === 'essencial' && (
+            <div
+              className="phrase-btn-wrap battery-alert"
+              data-gaze
+              data-gaze-phrase={`Minha bateria está fraca. Por favor, me ajude a recarregar o ${getDeviceType()}`}
+              data-gaze-label="Bateria fraca"
+              data-gaze-emoji="🪫"
+            >
+              <button
+                className="phrase-btn-main"
+                onClick={() => handleSpeak(
+                  `Minha bateria está fraca. Por favor, me ajude a recarregar o ${getDeviceType()}`,
+                  'Bateria fraca', '🪫'
+                )}
+              >
+                <span className="phrase-emoji">🪫</span>
+                <span className="phrase-label">Bateria fraca</span>
+                <span className="battery-pct">{Math.round(battery.level * 100)}%</span>
+              </button>
+            </div>
+          )}
           {activeCategory.buttons.length === 0 && (
             <div className="empty-state">
               <span>Nenhum favorito ainda.</span>
@@ -264,6 +318,16 @@ function App({ onResetSetup }) {
           onSpeak={(item) => { handleSpeak(item.phrase, item.label, item.emoji); setShowHistory(false) }}
           onClose={() => setShowHistory(false)}
         />
+      )}
+
+      {fellAlert && (
+        <div className="fall-overlay" onClick={dismissFall}>
+          <div className="fall-card" onClick={e => e.stopPropagation()}>
+            <span className="fall-icon">📱</span>
+            <p className="fall-text">Por favor, me ajude,<br />meu {fellAlert} caiu</p>
+            <button className="fall-dismiss" onClick={dismissFall}>Estou bem ✓</button>
+          </div>
+        </div>
       )}
 
       {showSettings && (

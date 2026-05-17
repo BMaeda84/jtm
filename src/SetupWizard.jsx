@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { useFaceTracking } from './useFaceTracking'
-import { fitTransform, saveTransform, saveTremorProfile } from './calibration'
+import { fitTransform, saveTransform, saveTremorProfile, clearTransform, clearTremorProfile } from './calibration'
 import './SetupWizard.css'
 
 const SETUP_KEY  = 'jtm_setup_done'
@@ -44,6 +44,8 @@ export function markSetupDone() {
 
 export function resetSetup() {
   localStorage.removeItem(SETUP_KEY)
+  clearTransform()
+  clearTremorProfile()
 }
 
 // ─────────────────────────────────────────────
