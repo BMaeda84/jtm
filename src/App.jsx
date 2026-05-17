@@ -50,6 +50,7 @@ function App({ onResetSetup }) {
   } = useSettings()
 
   const usingPiper  = piperState === 'ready'
+  const faceEnabled = gazeEnabled || scanEnabled
 
   // ── Battery ──────────────────────────────────
   const battery = useBattery()
@@ -81,7 +82,6 @@ function App({ onResetSetup }) {
     if (fallRepeatRef.current) clearInterval(fallRepeatRef.current)
   }, [])
 
-  const faceEnabled    = gazeEnabled || scanEnabled
   const calibTransform = useMemo(() => gazeEnabled ? loadTransform()     : null, [gazeEnabled])
   const tremorProfile  = useMemo(() => gazeEnabled ? loadTremorProfile() : null, [gazeEnabled])
   const { gazePoint, blinkCount, mouthCount, status: faceStatus, videoRef: faceVideoRef } = useFaceTracking(faceEnabled, 1.8, calibTransform, tremorProfile)
