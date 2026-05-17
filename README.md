@@ -5,16 +5,18 @@
 <br/>
 
 <div align="center">
-  <strong>Em memória de João Tossiro Maeda (1952–2022)</strong>
+  <strong>Em memória de João Tossiro Maeda (30/01/1944 – 21/11/2022)</strong>
 </div>
 
 ---
 
 ## A história
 
+Sou Bruno Maeda, engenheiro de computação especializado em inteligência artificial, funcionário público, casado, paulistano. Não sou desenvolvedor de carreira — construí este projeto com o Claude porque o que precisava fazer estava além do que conseguiria sozinho.
+
 Meu pai, João Tossiro Maeda, sofreu uma série de AVCs que o deixaram internado por mais de 30 dias. Já nos primeiros dias de internação ele havia perdido a fala. Havia uma possibilidade muito remota de sobreviver com sequelas — e, dentro dessas sequelas, estaria a impossibilidade de se comunicar.
 
-Foi durante esse período que imaginei o JTM. Um app simples, acessível pelo celular, que permitisse a ele indicar o que precisava — com um toque, com um olhar, com o que ainda fosse possível. Não tinha experiência suficiente em programação para construí-lo. E então veio a reviravolta: meu pai não se recuperou. Ele faleceu, e o projeto ficou para trás junto com a dor daqueles dias.
+Foi durante esse período que imaginei o JTM. Um app simples, acessível pelo celular, que permitisse a ele indicar o que precisava — com um toque, com um olhar, com o que ainda fosse possível. Não tinha experiência suficiente em programação para construí-lo. E então veio a reviravolta: meu pai não se recuperou. Ele faleceu em 21 de novembro de 2022, aos 78 anos, e o projeto ficou para trás junto com a dor daqueles dias.
 
 Depois de algum tempo, experimentando o Claude, percebi que o que antes era inviável por falta de conhecimento técnico agora tinha um caminho real. O JTM voltou — não a tempo de ajudá-lo, mas com a esperança de que possa ajudar outras famílias que estejam vivendo o que eu vivi.
 

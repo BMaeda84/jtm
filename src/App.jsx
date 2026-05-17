@@ -70,7 +70,7 @@ function App({ onResetSetup }) {
     speakFallPhrase(device)
     if (fallRepeatRef.current) clearInterval(fallRepeatRef.current)
     fallRepeatRef.current = setInterval(() => speakFallPhrase(device), 18000)
-  })
+  }, faceEnabled)
 
   function dismissFall() {
     setFellAlert(null)

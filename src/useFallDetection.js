@@ -12,12 +12,12 @@ export function getDeviceType() {
 // Free-fall detection using DeviceMotion accelerometer.
 // Pattern: near-zero acceleration (weightless during fall) followed by
 // high-acceleration spike (impact). Both phases needed to avoid false positives.
-export function useFallDetection(onFall) {
+export function useFallDetection(onFall, enabled = true) {
   const onFallRef = useRef(onFall)
   onFallRef.current = onFall
 
   useEffect(() => {
-    if (!window.DeviceMotionEvent) return
+    if (!enabled || !window.DeviceMotionEvent) return
 
     const FREEFALL_THR  = 3    // m/s² — below this the device is nearly weightless
     const IMPACT_THR    = 22   // m/s² — above this after free-fall = impact
