@@ -1,0 +1,230 @@
+.wizard {
+  position: fixed;
+  inset: 0;
+  background: #0F172A;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+  text-align: center;
+}
+
+/* ── Welcome step ── */
+.wizard-logo {
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.wizard-subtitle {
+  font-size: 15px;
+  color: #94A3B8;
+  margin-bottom: 48px;
+  line-height: 1.5;
+}
+
+.wizard-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.wizard-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.wizard-option {
+  background: #1E293B;
+  border: 2px solid #334155;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  touch-action: manipulation;
+}
+
+.wizard-option:active {
+  background: #2D3F55;
+  border-color: #2563EB;
+}
+
+.wizard-option-icon { font-size: 32px; flex-shrink: 0; }
+
+.wizard-option-text { display: flex; flex-direction: column; gap: 3px; }
+.wizard-option-title { font-size: 16px; font-weight: 700; color: white; }
+.wizard-option-desc  { font-size: 13px; color: #94A3B8; line-height: 1.4; }
+
+/* ── Scanning trigger step ── */
+.wizard-trigger-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 24px;
+}
+
+.wizard-trigger-btn {
+  background: #1E293B;
+  border: 2px solid #334155;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+  touch-action: manipulation;
+}
+
+.wizard-trigger-btn.selected {
+  border-color: #2563EB;
+  background: rgba(37,99,235,0.15);
+}
+
+.wizard-trigger-icon  { font-size: 28px; }
+.wizard-trigger-title { font-size: 15px; font-weight: 700; color: white; }
+.wizard-trigger-hint  { font-size: 12px; color: #94A3B8; margin-top: 2px; }
+
+.wizard-confirm-btn {
+  background: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  width: 100%;
+  max-width: 360px;
+}
+
+.wizard-back {
+  background: none;
+  border: none;
+  color: #64748B;
+  font-size: 14px;
+  margin-top: 16px;
+  cursor: pointer;
+  text-decoration: underline;
+  touch-action: manipulation;
+}
+
+/* ── Calibration step ── */
+.calib-screen {
+  position: fixed;
+  inset: 0;
+  background: #0F172A;
+  z-index: 210;
+}
+
+.calib-dot {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #2563EB;
+  transform: translate(-50%, -50%);
+  transition: left 0.4s ease, top 0.4s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calib-dot-inner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+}
+
+.calib-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.15);
+}
+
+.calib-ring-fill {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 3px solid #60A5FA;
+  clip-path: inset(0 0 0 0);
+  transform-origin: center;
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+.calib-progress-svg {
+  position: absolute;
+  inset: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+  transform: rotate(-90deg);
+}
+
+.calib-instruction {
+  position: absolute;
+  bottom: 80px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: white;
+  font-size: 16px;
+  padding: 0 24px;
+  line-height: 1.5;
+}
+
+.calib-step-indicator {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #64748B;
+  font-size: 14px;
+}
+
+.calib-skip {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.calib-skip button {
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  touch-action: manipulation;
+}
+
+.calib-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.calib-done-icon { font-size: 64px; }
+.calib-done-title { font-size: 22px; font-weight: 700; color: white; }
+.calib-done-desc  { font-size: 15px; color: #94A3B8; }

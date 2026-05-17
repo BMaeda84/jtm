@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 100">
+  <defs>
+    <radialGradient id="w-iris" cx="42%" cy="38%" r="62%">
+      <stop offset="0%"   stop-color="#93C5FD"/>
+      <stop offset="48%"  stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </radialGradient>
+    <clipPath id="w-eyeClip">
+      <path d="M 10 50 C 22 28,78 28,90 50 C 78 72,22 72,10 50 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="380" height="100" fill="#0F172A" rx="18"/>
+
+  <!-- Eye whites -->
+  <path d="M 10 50 C 22 28,78 28,90 50 C 78 72,22 72,10 50 Z"
+        fill="#14213D" transform="translate(5,0)"/>
+
+  <!-- Iris -->
+  <circle cx="55" cy="50" r="19" fill="url(#w-iris)"
+          clip-path="url(#w-eyeClip)" transform="translate(5,0)"/>
+
+  <!-- Iris detail ring -->
+  <circle cx="55" cy="50" r="14.5" fill="none" stroke="#BFDBFE"
+          stroke-width="0.5" opacity="0.22"
+          clip-path="url(#w-eyeClip)" transform="translate(5,0)"/>
+
+  <!-- Pupil -->
+  <circle cx="55" cy="50" r="8.5" fill="#060D1A"
+          clip-path="url(#w-eyeClip)" transform="translate(5,0)"/>
+
+  <!-- Gaze crosshair -->
+  <line x1="55" y1="44" x2="55" y2="56"
+        stroke="#3B82F6" stroke-width="1.2" stroke-linecap="round"
+        clip-path="url(#w-eyeClip)" transform="translate(5,0)"/>
+  <line x1="49" y1="50" x2="61" y2="50"
+        stroke="#3B82F6" stroke-width="1.2" stroke-linecap="round"
+        clip-path="url(#w-eyeClip)" transform="translate(5,0)"/>
+
+  <!-- Gaze center point -->
+  <circle cx="60" cy="50" r="1.8" fill="#60A5FA"
+          clip-path="url(#w-eyeClip)"/>
+
+  <!-- Specular highlight -->
+  <ellipse cx="63" cy="42" rx="4" ry="2.8" fill="white" opacity="0.18"
+           transform="rotate(-25,63,42)"
+           clip-path="url(#w-eyeClip)"/>
+  <circle  cx="64" cy="41" r="2" fill="white" opacity="0.26"
+           clip-path="url(#w-eyeClip)"/>
+
+  <!-- Upper eyelid -->
+  <path d="M 15 50 C 27 28,83 28,95 50"
+        fill="none" stroke="#334155" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- Lower eyelid -->
+  <path d="M 15 50 C 27 72,83 72,95 50"
+        fill="none" stroke="#1E293B" stroke-width="0.9" stroke-linecap="round"/>
+
+  <!-- Vertical divider -->
+  <line x1="106" y1="20" x2="106" y2="80"
+        stroke="#1D4ED8" stroke-width="1" opacity="0.55"/>
+
+  <!-- JTM wordmark -->
+  <text x="120" y="57"
+        font-family="'Helvetica Neue','Arial Black',Arial,sans-serif"
+        font-size="40" font-weight="900"
+        fill="#F1F5F9" letter-spacing="10">JTM</text>
+
+  <!-- Tagline -->
+  <text x="121" y="76"
+        font-family="Arial,sans-serif"
+        font-size="11" fill="#3B82F6" letter-spacing="1.4">comunicação aumentativa e alternativa</text>
+</svg>
