@@ -420,6 +420,7 @@ function TextInput({ onSpeak }) {
         onKeyDown={handleKey}
         placeholder="Ex: Estou com sede..."
         rows={4}
+        maxLength={500}
         autoFocus
       />
       <button

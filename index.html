@@ -10,6 +10,44 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="JTM" />
     <title>JTM</title>
+
+    <!--
+      Content Security Policy (A05 / A08)
+      ─────────────────────────────────────────────────────────────────────────
+      default-src 'none'          → bloqueia tudo que não for explicitamente permitido
+      script-src  'self' blob:    → só bundles locais + WASM instanciado como blob worker
+                  'wasm-unsafe-eval' → necessário para JIT do WASM do MediaPipe / Piper
+      style-src   'self' 'unsafe-inline' → React usa style={} que vira atributo inline
+      connect-src → permite fetch dos binários do MediaPipe (CDN pinado) e modelo de IA
+      worker-src  'self' blob:    → service worker + web workers do Piper/MediaPipe
+      media-src   blob:           → áudio gerado pelo Piper via createObjectURL
+      img-src     'self' data: blob: → ícones PWA e SVGs inline
+      frame-ancestors 'none'      → bloqueia embedding em iframe (anti-clickjacking, A05)
+      object-src  'none'          → desabilita plugins (Flash, Java)
+      base-uri    'self'          → impede injeção de <base href>
+      form-action 'none'          → app não tem formulários com POST
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'none';
+      script-src 'self' blob: 'wasm-unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      connect-src 'self'
+        https://cdn.jsdelivr.net
+        https://storage.googleapis.com
+        blob:;
+      worker-src 'self' blob:;
+      media-src blob:;
+      img-src 'self' data: blob:;
+      manifest-src 'self';
+      font-src 'self';
+      frame-ancestors 'none';
+      object-src 'none';
+      base-uri 'self';
+      form-action 'none';
+    " />
+
+    <!-- Impede sniffing de MIME type (A05) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   </head>
   <body>
     <div id="root"></div>
