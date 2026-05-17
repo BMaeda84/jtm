@@ -8,6 +8,12 @@ const base = process.env.GITHUB_ACTIONS ? '/jtm/' : '/'
 
 export default defineConfig({
   base,
+  build: {
+    // O polyfill de modulepreload injeta um <script> inline que a CSP bloqueia.
+    // Navegadores modernos (Chrome 66+, Firefox 115+, Safari 17+) suportam
+    // <link rel="modulepreload"> nativamente — o polyfill não é necessário.
+    modulePreload: { polyfill: false },
+  },
   server: {
     https: true,
     host: true,
