@@ -176,8 +176,21 @@ function App({ onResetSetup }) {
   //   mouthCount  → contador crescente de abertura de boca
   //   faceStatus  → 'idle'|'loading'|'active'|'error'
   //   faceVideoRef → ref do elemento <video> (gerenciado por React)
-  const { gazePoint, blinkCount, mouthCount, status: faceStatus, videoRef: faceVideoRef } =
+  const { gazePoint, blinkCount, mouthCount, status: faceStatus, videoRef: faceVideoRef, diagSteps } =
     useFaceTracking(faceEnabled, 1.8, calibTransform, tremorProfile)
+
+  // ── Diagnóstico de CSP na tela (temporário) ──────────────────────────────
+  // Captura violações de Content-Security-Policy e exibe na tela junto com os
+  // passos do init. Isso evita precisar de DevTools no celular para depurar.
+  const [cspViolations, setCspViolations] = useState([])
+  useEffect(() => {
+    function onCspViolation(e) {
+      const msg = `CSP: bloqueou ${e.blockedURI} em ${e.violatedDirective}`
+      setCspViolations(prev => [...prev.slice(-4), msg])  // mantém últimas 5
+    }
+    document.addEventListener('securitypolicyviolation', onCspViolation)
+    return () => document.removeEventListener('securitypolicyviolation', onCspViolation)
+  }, [])
 
   // ── Verificação de cache do Piper na montagem ─────────────────────────────
   useEffect(() => {
@@ -342,6 +355,26 @@ function App({ onResetSetup }) {
           autoPlay playsInline muted
           style={{ position: 'fixed', top: -9999, left: -9999, width: 320, height: 240, pointerEvents: 'none' }}
         />
+      )}
+
+      {/* ── Painel de diagnóstico visual (temporário) ───────────────────────
+          Exibe os passos do init e violações de CSP diretamente na tela para
+          depurar sem precisar de DevTools em celular. Removível após diagnóstico. */}
+      {faceEnabled && faceStatus !== 'active' && (diagSteps.length > 0 || cspViolations.length > 0) && (
+        <div style={{
+          position: 'fixed', top: 60, left: 0, right: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.85)', color: '#a3e635', fontSize: 11,
+          fontFamily: 'monospace', padding: '8px 12px', maxHeight: '40vh', overflowY: 'auto',
+        }}>
+          <div style={{ color: '#facc15', marginBottom: 4 }}>── init steps ──</div>
+          {diagSteps.map((s, i) => <div key={i}>{s}</div>)}
+          {cspViolations.length > 0 && (
+            <>
+              <div style={{ color: '#f87171', marginTop: 6, marginBottom: 4 }}>── CSP violations ──</div>
+              {cspViolations.map((v, i) => <div key={i}>{v}</div>)}
+            </>
+          )}
+        </div>
       )}
 
       {/* Banner de download do Piper — exibido na primeira abertura */}

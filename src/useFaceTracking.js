@@ -161,6 +161,18 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
   const [mouthCount, setMouthCount] = useState(0)     // contador crescente de aberturas de boca válidas
   const [status,     setStatus]     = useState('idle') // 'idle' | 'loading' | 'active' | 'error'
 
+  // ── Diagnóstico visual (temporário) ──────────────────────────────────────
+  // Acumula mensagens de progresso de cada etapa do init para exibir na tela.
+  // Útil para depurar tela em branco / travamento em dispositivos móveis sem DevTools.
+  const [diagSteps, setDiagSteps] = useState([])
+  // addStep: registra uma etapa com timestamp relativo ao início do init
+  const diagStartRef = useRef(0)
+  function addStep(msg) {
+    const elapsed = ((Date.now() - diagStartRef.current) / 1000).toFixed(1)
+    setDiagSteps(prev => [...prev, `+${elapsed}s ${msg}`])
+    console.log('[JTM diag]', msg)
+  }
+
   // Ref para calibTransform: permite atualizar sem reiniciar o efeito
   // (os filtros e a câmera continuam rodando; só o transform muda)
   const calibRef   = useRef(calibTransform)
@@ -198,14 +210,18 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
 
     let cancelled = false  // flag para abortar operações assíncronas se o efeito for desmontado
     setStatus('loading')
+    setDiagSteps([])
+    diagStartRef.current = Date.now()
 
     async function init() {
       try {
+        addStep('aguardando videoRef...')
         // Aguarda até 2 segundos pelo elemento <video> ser montado no DOM.
         // O React monta o <video> no JSX do componente pai e atribui ao ref;
         // há uma janela de tempo entre o efeito rodar e o ref ser preenchido.
         const video = await waitForRef(videoRef, 2000)
         if (!video || cancelled) return
+        addStep('videoRef OK, pedindo câmera...')
 
         // Solicita acesso à câmera frontal com resolução baixa (320×240).
         // Resolução menor = menos CPU/GPU = mais frames por segundo para o modelo.
@@ -213,6 +229,7 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
           video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
         })
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        addStep('câmera OK, aguardando metadados...')
 
         streamRef.current = stream
         video.srcObject    = stream
@@ -222,15 +239,28 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
           if (video.readyState >= 1) { r(); return }
           video.onloadedmetadata = r
         })
+        addStep('metadados OK, iniciando play()...')
         await video.play()
+        addStep('play() OK, aguardando canplay...')
 
-        // Aguarda o primeiro frame decodificado (readyState >= 2)
-        // O MediaPipe só aceita frames quando há dados de imagem disponíveis
-        await new Promise(r => {
-          if (video.readyState >= 2) { r(); return }
-          video.addEventListener('canplay', r, { once: true })
+        // Aguarda o primeiro frame decodificado (readyState >= 2).
+        // O MediaPipe só aceita frames quando há dados de imagem disponíveis.
+        // Timeout de 8s para não travar se canplay não disparar (alguns browsers
+        // disparam 'playing' em vez de 'canplay' dependendo do stream de câmera).
+        await new Promise((resolve, reject) => {
+          if (video.readyState >= 2) { resolve(); return }
+          const tid = setTimeout(() => {
+            // Se readyState ainda é 0 após 8s, provavelmente há problema real.
+            // Se >= 1 (metadados OK mas sem frames), tentamos prosseguir assim mesmo.
+            if (video.readyState >= 1) { addStep(`canplay timeout (readyState=${video.readyState}), continuando...`); resolve() }
+            else reject(new Error(`canplay timeout após 8s (readyState=${video.readyState})`))
+          }, 8000)
+          video.addEventListener('canplay', () => { clearTimeout(tid); resolve() }, { once: true })
+          // 'playing' também indica que frames estão chegando — aceita ambos
+          video.addEventListener('playing', () => { clearTimeout(tid); resolve() }, { once: true })
         })
         if (cancelled) { cleanup(); return }
+        addStep('vídeo pronto, baixando WASM MediaPipe...')
 
         // ── Carregamento do modelo MediaPipe ─────────────────────────────────
         // FilesetResolver baixa e configura o ambiente WASM.
@@ -239,6 +269,7 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
         // delegate: 'GPU' usa WebGL para inferência na GPU (mais rápido).
         // Fallback para CPU se o dispositivo não suportar GPU delegate.
         const vision = await FilesetResolver.forVisionTasks(WASM_URL)
+        addStep('WASM OK, criando FaceLandmarker (GPU)...')
         const opts = {
           baseOptions:          { modelAssetPath: MODEL_URL, delegate: 'GPU' },
           runningMode:          'VIDEO',     // modo otimizado para frames sequenciais
@@ -247,13 +278,16 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
         }
         try {
           landmarkerRef.current = await FaceLandmarker.createFromOptions(vision, opts)
+          addStep('FaceLandmarker GPU pronto!')
         } catch {
           // GPU delegate falhou (comum em alguns dispositivos Android antigos)
+          addStep('GPU falhou, tentando CPU...')
           console.warn('[JTM] GPU delegate falhou, tentando CPU')
           landmarkerRef.current = await FaceLandmarker.createFromOptions(vision, {
             ...opts,
             baseOptions: { modelAssetPath: MODEL_URL, delegate: 'CPU' },
           })
+          addStep('FaceLandmarker CPU pronto!')
         }
         if (cancelled) { cleanup(); return }
 
@@ -261,6 +295,7 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
         loop()  // inicia o ciclo de inferência frame a frame
       } catch (e) {
         console.error('[JTM] Erro no FaceTracking:', e)
+        addStep(`ERRO: ${e.message}`)
         if (!cancelled) setStatus('error')
       }
     }
@@ -448,7 +483,7 @@ export function useFaceTracking(enabled, sensitivity = 2.5, calibTransform = nul
     }
   }
 
-  return { gazePoint, rawGaze, blinkCount, mouthCount, status, videoRef }
+  return { gazePoint, rawGaze, blinkCount, mouthCount, status, videoRef, diagSteps }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
