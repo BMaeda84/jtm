@@ -130,6 +130,15 @@ export function resetSetup() {
   clearTremorProfile()  // remove jtm_tremor do localStorage
 }
 
+// Remove apenas os dados de calibração ocular (transform afim + perfil de tremor),
+// sem apagar o modo de controle escolhido (jtm_gaze, jtm_scan, jtm_setup_done).
+// Usado pelo botão "Recalibrar rastreamento" nas configurações — permite refazer
+// a calibração para outro usuário ou nova posição de câmera, sem recomeçar o wizard.
+export function clearCalibrationOnly() {
+  clearTransform()
+  clearTremorProfile()
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SetupWizard — controlador do fluxo de onboarding
 //
@@ -139,14 +148,18 @@ export function resetSetup() {
 //     trigger: 'blink'|'mouth'|'auto' (só para mode='scan')
 //     calibrated: boolean (só para mode='gaze')
 // ─────────────────────────────────────────────────────────────────────────────
-export function SetupWizard({ onComplete }) {
+// Props extras usadas no fluxo de recalibração iniciado pelas configurações:
+//   startAt     — step inicial; 'welcome' (padrão) ou 'precheck' para pular a tela de boas-vindas
+//   initialMode — modo pré-selecionado quando startAt !== 'welcome'; ex: 'gaze'
+export function SetupWizard({ onComplete, startAt = 'welcome', initialMode = null }) {
   // Máquina de estados do wizard: tela atual sendo exibida
   // 'welcome' | 'scan-trigger' | 'precheck' | 'calibration' | 'gesture-calib' | 'done'
-  const [step, setStep] = useState('welcome')
+  const [step, setStep] = useState(startAt)
 
-  // Preserva as escolhas do usuário enquanto navega pelo wizard
-  const [chosenMode,    setChosenMode]    = useState(null)  // 'touch'|'scan'|'gaze'
-  const [chosenTrigger, setChosenTrigger] = useState(null)  // 'blink'|'mouth'|'auto'|null
+  // Preserva as escolhas do usuário enquanto navega pelo wizard.
+  // Pré-inicializado com initialMode para o fluxo de recalibração.
+  const [chosenMode,    setChosenMode]    = useState(initialMode)  // 'touch'|'scan'|'gaze'
+  const [chosenTrigger, setChosenTrigger] = useState(null)         // 'blink'|'mouth'|'auto'|null
 
   // Modo toque: não precisa de câmera — setup imediato
   function chooseTouch() {

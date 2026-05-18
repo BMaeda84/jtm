@@ -134,3 +134,16 @@ export function cancelPiper() {
     currentAudio = null
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// clearPiperCache()
+//
+// Remove o modelo de voz baixado do OPFS (Origin Private File System).
+// Após limpar, isPiperCached() voltará a retornar false e downloadPiper()
+// precisará ser chamado novamente para restaurar o uso offline.
+//
+// Útil quando o modelo ficou corrompido ou para liberar espaço em disco.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function clearPiperCache() {
+  await tts.remove(VOICE_ID)
+}

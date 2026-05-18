@@ -23,7 +23,14 @@
                     por isso a mesma origem precisa aparecer aqui E no worker-src.
                   'wasm-unsafe-eval' → necessário para JIT/compilação do WASM do MediaPipe / Piper
       style-src   'self' 'unsafe-inline' → React usa style={} que vira atributo inline
-      connect-src → permite fetch dos binários do MediaPipe (CDN pinado) e modelo de IA
+      connect-src → permite fetch dos binários do MediaPipe e dos arquivos do Piper TTS:
+                    cdn.jsdelivr.net         → WASM do MediaPipe + piper-phonemize
+                    storage.googleapis.com   → modelo do FaceLandmarker (~11 MB)
+                    huggingface.co           → modelos de voz Piper (.onnx, ~63 MB),
+                                               servidos pelo Hub da Hugging Face
+                    cdnjs.cloudflare.com     → ONNX Runtime WASM (~26 MB), usado
+                                               internamente pela piper-tts-web para
+                                               rodar a inferência neural no navegador
       worker-src  'self' blob: https://cdn.jsdelivr.net
                   → O MediaPipe (tasks-vision) cria Web Workers a partir de scripts
                     hospedados no cdn.jsdelivr.net para rodar a inferência neural (WASM)
@@ -43,6 +50,8 @@
       connect-src 'self'
         https://cdn.jsdelivr.net
         https://storage.googleapis.com
+        https://huggingface.co
+        https://cdnjs.cloudflare.com
         blob:;
       worker-src 'self' blob: https://cdn.jsdelivr.net;
       media-src blob:;

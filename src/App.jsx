@@ -47,11 +47,11 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { categories as baseCategories } from './phrases'
 import { useVoice, speak as speakNative } from './useVoice'
 import { useSettings } from './useSettings'
-import { isPiperCached, downloadPiper, speakWithPiper } from './piperTTS'
+import { isPiperCached, downloadPiper, speakWithPiper, clearPiperCache } from './piperTTS'
 import { useFaceTracking } from './useFaceTracking'
 import { useScanning } from './useScanning'
 import { GazeCursor } from './GazeCursor'
-import { SetupWizard, needsSetup, resetSetup } from './SetupWizard'
+import { SetupWizard, needsSetup, resetSetup, clearCalibrationOnly } from './SetupWizard'
 import { loadTransform, loadTremorProfile } from './calibration'
 import { useBattery } from './useBattery'
 import { useFallDetection, getDeviceType, requestMotionPermission } from './useFallDetection'
@@ -69,22 +69,46 @@ const FAVORITOS_ID  = '__favoritos__'   // categoria filtrada dos botões favori
 // (jtm_gaze / jtm_scan / jtm_scan_trigger) para que useSettings() as leia.
 // ─────────────────────────────────────────────────────────────────────────────
 export default function AppRoot() {
-  const [showSetup, setShowSetup] = useState(() => needsSetup())
+  const [showSetup,   setShowSetup]   = useState(() => needsSetup())
+  // showRecalib: ativa o wizard no modo recalibração (pula welcome, vai direto ao precheck)
+  const [showRecalib, setShowRecalib] = useState(false)
 
   function handleSetupComplete({ mode, trigger }) {
     if (mode === 'scan') {
-      // Persiste o modo de varredura e o gatilho escolhido
       localStorage.setItem('jtm_scan', 'true')
       if (trigger) localStorage.setItem('jtm_scan_trigger', JSON.stringify(trigger))
     } else if (mode === 'gaze') {
-      // Persiste que o rastreamento ocular está ativado
       localStorage.setItem('jtm_gaze', 'true')
     }
     setShowSetup(false)
   }
 
+  // Recalibração: limpa apenas os dados de calibração (mantém modo escolhido)
+  // e exibe o wizard a partir do precheck com o modo já definido como 'gaze'
+  function handleRecalibrate() {
+    clearCalibrationOnly()
+    setShowRecalib(true)
+  }
+
   if (showSetup) return <SetupWizard onComplete={handleSetupComplete} />
-  return <App onResetSetup={() => { resetSetup(); setShowSetup(true) }} />
+
+  // Modo recalibração: wizard inicia no precheck com mode='gaze' pré-selecionado
+  if (showRecalib) {
+    return (
+      <SetupWizard
+        startAt="precheck"
+        initialMode="gaze"
+        onComplete={() => setShowRecalib(false)}
+      />
+    )
+  }
+
+  return (
+    <App
+      onResetSetup={() => { resetSetup(); setShowSetup(true) }}
+      onRecalibrate={handleRecalibrate}
+    />
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,7 +117,7 @@ export default function AppRoot() {
 // Props:
 //   onResetSetup — callback que restaura o estado inicial (volta ao wizard)
 // ─────────────────────────────────────────────────────────────────────────────
-function App({ onResetSetup }) {
+function App({ onResetSetup, onRecalibrate }) {
   // ── Estado da UI ──────────────────────────────────────────────────────────
   const [activeCategoryId, setActiveCategoryId] = useState(baseCategories[0].id)
   const [lastSpoken, setLastSpoken] = useState(null)       // {label, phrase, emoji} | null
@@ -199,6 +223,14 @@ function App({ onResetSetup }) {
   useEffect(() => {
     isPiperCached().then(cached => setPiperState(cached ? 'ready' : 'prompt'))
   }, [])
+
+  // ── Limpeza do cache do Piper ─────────────────────────────────────────────
+  // Remove o modelo .onnx do OPFS para que possa ser re-baixado.
+  // Útil quando o download corrompeu ou para liberar armazenamento.
+  async function handleClearPiper() {
+    await clearPiperCache()
+    setPiperState('prompt')  // volta ao estado de "oferecer download"
+  }
 
   // ── Download do modelo Piper ──────────────────────────────────────────────
   async function handleDownloadPiper() {
@@ -541,6 +573,8 @@ function App({ onResetSetup }) {
       {showSettings && (
         <SettingsSheet
           onResetSetup={onResetSetup}
+          onRecalibrate={onRecalibrate}
+          onClearPiper={usingPiper ? handleClearPiper : null}
           speechRate={speechRate}
           onRateChange={setSpeechRate}
           darkMode={darkMode}
@@ -716,7 +750,7 @@ function HistorySheet({ history, onSpeak, onClose }) {
 // needsMotionPerm: verdadeiro apenas no iOS 13+, onde DeviceMotionEvent.requestPermission
 //   é uma função (no Android esta propriedade não existe).
 // ─────────────────────────────────────────────────────────────────────────────
-function SettingsSheet({ onResetSetup, speechRate, onRateChange, darkMode, onDarkModeChange, gazeEnabled, onGazeChange, dwellTime, onDwellChange, scanEnabled, onScanChange, scanSpeed, onScanSpeedChange, scanTrigger, onScanTriggerChange, usingPiper, voices, selectedVoice, onSelectVoice, onPreviewVoice, onRequestMotion, onClose }) {
+function SettingsSheet({ onResetSetup, onRecalibrate, onClearPiper, speechRate, onRateChange, darkMode, onDarkModeChange, gazeEnabled, onGazeChange, dwellTime, onDwellChange, scanEnabled, onScanChange, scanSpeed, onScanSpeedChange, scanTrigger, onScanTriggerChange, usingPiper, voices, selectedVoice, onSelectVoice, onPreviewVoice, onRequestMotion, onClose }) {
   // Estado local da permissão de movimento iOS — null=não solicitada, 'granted', 'denied'
   const [motionPerm, setMotionPerm] = useState(null)
 
@@ -880,6 +914,42 @@ function SettingsSheet({ onResetSetup, speechRate, onRateChange, darkMode, onDar
                   onClick={() => onRequestMotion().then(p => setMotionPerm(p))}
                 >
                   {motionPerm === 'denied' ? '⚠️ Negado' : '📡 Ativar'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Recalibrar rastreamento ocular ── */}
+          {/* Visível apenas quando o rastreamento ocular está ativo.
+              Limpa só os dados de calibração (transform afim + perfil de tremor)
+              e reabre o wizard diretamente no precheck, sem apagar o modo escolhido. */}
+          {gazeEnabled && onRecalibrate && (
+            <div className="settings-section">
+              <div className="settings-row">
+                <div>
+                  <span className="settings-label">Recalibrar rastreamento</span>
+                  <p className="settings-hint">Refaz a calibração do olhar para este usuário ou posição de câmera, sem alterar outras configurações.</p>
+                </div>
+                <button className="toggle-btn" onClick={() => { onClose(); onRecalibrate() }}>
+                  Recalibrar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Limpar cache de voz Piper ── */}
+          {/* Visível apenas quando o modelo Piper já foi baixado (usingPiper=true).
+              Remove o arquivo .onnx do OPFS — o download poderá ser refeito pelo banner.
+              Útil quando o modelo corrompeu durante o download ou para liberar ~63 MB. */}
+          {onClearPiper && (
+            <div className="settings-section">
+              <div className="settings-row">
+                <div>
+                  <span className="settings-label">Limpar voz baixada</span>
+                  <p className="settings-hint">Remove o modelo de voz Piper (~63 MB) do armazenamento local. Será necessário baixar novamente para usá-lo.</p>
+                </div>
+                <button className="toggle-btn" onClick={() => { onClose(); onClearPiper() }}>
+                  Limpar
                 </button>
               </div>
             </div>
