@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
-// When building for GitHub Pages (CI=true), assets are served under /jtm/
+// No build para o GitHub Pages (CI=true), os assets são servidos sob o caminho /jtm/
 const base = process.env.GITHUB_ACTIONS ? '/jtm/' : '/'
 
 export default defineConfig({

@@ -66,8 +66,8 @@ const RIGHT_EYE_R = 263  // canto temporal do olho direito
 // Solução: One Euro Filter (Casiez et al., 2012) — adapta dinamicamente
 // a frequência de corte baseado na VELOCIDADE do sinal:
 //
-//   velocity baixa (olhar parado, tremor) → frequência de corte baixa → mais suavização
-//   velocity alta (movimento intencional) → frequência de corte alta → responsivo
+//   velocidade baixa (olhar parado, tremor) → frequência de corte baixa → mais suavização
+//   velocidade alta (movimento intencional) → frequência de corte alta → responsivo
 //
 // PARÂMETROS:
 //   minCutoff (Hz): suavização mínima quando parado. Padrão 0.5 Hz.

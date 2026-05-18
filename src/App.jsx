@@ -401,11 +401,11 @@ function App({ onResetSetup, onRecalibrate }) {
           background: 'rgba(0,0,0,0.85)', color: '#a3e635', fontSize: 11,
           fontFamily: 'monospace', padding: '8px 12px', maxHeight: '40vh', overflowY: 'auto',
         }}>
-          <div style={{ color: '#facc15', marginBottom: 4 }}>── init steps ──</div>
+          <div style={{ color: '#facc15', marginBottom: 4 }}>── passos de inicialização ──</div>
           {diagSteps.map((s, i) => <div key={i}>{s}</div>)}
           {cspViolations.length > 0 && (
             <>
-              <div style={{ color: '#f87171', marginTop: 6, marginBottom: 4 }}>── CSP violations ──</div>
+              <div style={{ color: '#f87171', marginTop: 6, marginBottom: 4 }}>── violações de CSP ──</div>
               {cspViolations.map((v, i) => <div key={i}>{v}</div>)}
             </>
           )}
