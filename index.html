@@ -26,8 +26,13 @@
       connect-src → permite fetch dos binários do MediaPipe e dos arquivos do Piper TTS:
                     cdn.jsdelivr.net         → WASM do MediaPipe + piper-phonemize
                     storage.googleapis.com   → modelo do FaceLandmarker (~11 MB)
-                    huggingface.co           → modelos de voz Piper (.onnx, ~63 MB),
-                                               servidos pelo Hub da Hugging Face
+                    huggingface.co           → ponto de entrada do Hub e voices.json
+                    *.xethub.hf.co           → CDN real dos arquivos grandes da HF:
+                                               o download do .onnx recebe um redirect
+                                               302 para cas-bridge.xethub.hf.co (LFS
+                                               via XetHub). A CSP verifica a URL após
+                                               o redirect, por isso esse domínio precisa
+                                               ser autorizado explicitamente.
                     cdnjs.cloudflare.com     → ONNX Runtime WASM (~26 MB), usado
                                                internamente pela piper-tts-web para
                                                rodar a inferência neural no navegador
@@ -51,6 +56,7 @@
         https://cdn.jsdelivr.net
         https://storage.googleapis.com
         https://huggingface.co
+        https://*.xethub.hf.co
         https://cdnjs.cloudflare.com
         blob:;
       worker-src 'self' blob: https://cdn.jsdelivr.net;
